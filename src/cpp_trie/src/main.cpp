@@ -1,5 +1,6 @@
 // trajectory.cpp
 #include "main.h"
+#include "laplace.h"
 #include <unordered_map>
 #include <vector>
 #include <algorithm>
