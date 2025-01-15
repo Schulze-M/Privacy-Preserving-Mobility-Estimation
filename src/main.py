@@ -69,7 +69,7 @@ def load_data() -> trie:
 
     # TODO start counts are needed to be computed
     start = time.time()
-    test = ppme.process_prefix_py(trajs)
+    test = ppme.process_prefix_py(trajs[:2])
 
     print(f"Processing finished after: {(time.time() - start) / 60} minutes")
     print(test)

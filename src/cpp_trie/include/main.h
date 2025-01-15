@@ -35,7 +35,7 @@ std::ostream& operator<<(std::ostream& os, const Coordinate& coord);
 
 // Define Trajectory as a vector of vectors of floats
 using Trajectory = std::vector<Coordinate>;
-using ResultMap = std::unordered_map<Coordinate, std::unordered_map<Coordinate, int>>;
+using ResultMap = std::unordered_map<Coordinate, std::unordered_map<Coordinate, float>>;
 
 // Function to process prefixes
 ResultMap process_prefix(const std::vector<Trajectory>& trajectories);

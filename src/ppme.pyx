@@ -20,7 +20,7 @@ cdef extern from "./cpp_trie/include/main.h":
         float data[2]
 
     ctypedef vector[Coordinate] Trajectory
-    ctypedef unordered_map[Coordinate, unordered_map[Coordinate, int]] ResultMap
+    ctypedef unordered_map[Coordinate, unordered_map[Coordinate, float]] ResultMap
 
     ResultMap process_prefix(const vector[Trajectory]& trajectories)
 
@@ -61,9 +61,9 @@ cdef vector[Trajectory] list_to_vector(list py_list):
 cdef result_map_to_dict(ResultMap result):
     py_result = {}
     cdef Coordinate key, inner_key
-    cdef unordered_map[Coordinate, int] inner_map
-    cdef pair[Coordinate, unordered_map[Coordinate, int]] outer_pair
-    cdef pair[Coordinate, int] inner_pair
+    cdef unordered_map[Coordinate, float] inner_map
+    cdef pair[Coordinate, unordered_map[Coordinate, float]] outer_pair
+    cdef pair[Coordinate, float] inner_pair
 
     # Iterate over the ResultMap
     for outer_pair in result:

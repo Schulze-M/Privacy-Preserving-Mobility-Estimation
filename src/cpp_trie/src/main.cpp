@@ -94,6 +94,17 @@ ResultMap process_prefix(const std::vector<Trajectory>& trajectories) {
             }
         }
     }
+
+    // add laplace noise to the counts
+    std::random_device rd;
+    Laplace laplace(rd());
+
+    for (auto& outer : result) {
+        for (auto& inner : outer.second) {
+            inner.second += laplace.return_a_random_variable();
+        }
+    }
+
     std::cout << std::endl; // Ensure the progress bar ends on a new line
     return result;
 }
