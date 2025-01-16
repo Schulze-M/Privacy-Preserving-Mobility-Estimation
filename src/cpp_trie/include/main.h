@@ -10,7 +10,7 @@
 
 // Wrapper for fixed-size float array
 struct Coordinate {
-    float data[2];
+    double data[2];
 
     // Equality operator for use in unordered_map
     bool operator==(const Coordinate& other) const {
@@ -35,9 +35,13 @@ std::ostream& operator<<(std::ostream& os, const Coordinate& coord);
 
 // Define Trajectory as a vector of vectors of floats
 using Trajectory = std::vector<Coordinate>;
-using ResultMap = std::unordered_map<Coordinate, std::unordered_map<Coordinate, float>>;
+using PrefixMap = std::unordered_map<Coordinate, std::unordered_map<Coordinate, double>>;
+using StartMap = std::unordered_map<Coordinate, double>;
+
+// Function to process start coordinates
+StartMap process_start(const std::vector<Trajectory>& trajectories);
 
 // Function to process prefixes
-ResultMap process_prefix(const std::vector<Trajectory>& trajectories);
+PrefixMap process_prefix(const std::vector<Trajectory>& trajectories);
 
 #endif // MAIN_H

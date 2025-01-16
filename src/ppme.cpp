@@ -19,7 +19,11 @@
         ],
         "extra_compile_args": [
             "-O3",
-            "-std=c++11"
+            "-std=c++11",
+            "-fopenmp"
+        ],
+        "extra_link_args": [
+            "-fopenmp"
         ],
         "include_dirs": [
             "/home/max/.local/lib/python3.10/site-packages/numpy/_core/include",
@@ -2197,6 +2201,61 @@ static void __Pyx_RaiseArgtupleInvalid(const char* func_name, int exact,
         __Pyx__ArgTypeTest(obj, type, name, exact))
 static int __Pyx__ArgTypeTest(PyObject *obj, PyTypeObject *type, const char *name, int exact);
 
+/* PyDictVersioning.proto */
+#if CYTHON_USE_DICT_VERSIONS && CYTHON_USE_TYPE_SLOTS
+#define __PYX_DICT_VERSION_INIT  ((PY_UINT64_T) -1)
+#define __PYX_GET_DICT_VERSION(dict)  (((PyDictObject*)(dict))->ma_version_tag)
+#define __PYX_UPDATE_DICT_CACHE(dict, value, cache_var, version_var)\
+    (version_var) = __PYX_GET_DICT_VERSION(dict);\
+    (cache_var) = (value);
+#define __PYX_PY_DICT_LOOKUP_IF_MODIFIED(VAR, DICT, LOOKUP) {\
+    static PY_UINT64_T __pyx_dict_version = 0;\
+    static PyObject *__pyx_dict_cached_value = NULL;\
+    if (likely(__PYX_GET_DICT_VERSION(DICT) == __pyx_dict_version)) {\
+        (VAR) = __pyx_dict_cached_value;\
+    } else {\
+        (VAR) = __pyx_dict_cached_value = (LOOKUP);\
+        __pyx_dict_version = __PYX_GET_DICT_VERSION(DICT);\
+    }\
+}
+static CYTHON_INLINE PY_UINT64_T __Pyx_get_tp_dict_version(PyObject *obj);
+static CYTHON_INLINE PY_UINT64_T __Pyx_get_object_dict_version(PyObject *obj);
+static CYTHON_INLINE int __Pyx_object_dict_version_matches(PyObject* obj, PY_UINT64_T tp_dict_version, PY_UINT64_T obj_dict_version);
+#else
+#define __PYX_GET_DICT_VERSION(dict)  (0)
+#define __PYX_UPDATE_DICT_CACHE(dict, value, cache_var, version_var)
+#define __PYX_PY_DICT_LOOKUP_IF_MODIFIED(VAR, DICT, LOOKUP)  (VAR) = (LOOKUP);
+#endif
+
+/* GetModuleGlobalName.proto */
+#if CYTHON_USE_DICT_VERSIONS
+#define __Pyx_GetModuleGlobalName(var, name)  do {\
+    static PY_UINT64_T __pyx_dict_version = 0;\
+    static PyObject *__pyx_dict_cached_value = NULL;\
+    (var) = (likely(__pyx_dict_version == __PYX_GET_DICT_VERSION(__pyx_d))) ?\
+        (likely(__pyx_dict_cached_value) ? __Pyx_NewRef(__pyx_dict_cached_value) : __Pyx_GetBuiltinName(name)) :\
+        __Pyx__GetModuleGlobalName(name, &__pyx_dict_version, &__pyx_dict_cached_value);\
+} while(0)
+#define __Pyx_GetModuleGlobalNameUncached(var, name)  do {\
+    PY_UINT64_T __pyx_dict_version;\
+    PyObject *__pyx_dict_cached_value;\
+    (var) = __Pyx__GetModuleGlobalName(name, &__pyx_dict_version, &__pyx_dict_cached_value);\
+} while(0)
+static PyObject *__Pyx__GetModuleGlobalName(PyObject *name, PY_UINT64_T *dict_version, PyObject **dict_cached_value);
+#else
+#define __Pyx_GetModuleGlobalName(var, name)  (var) = __Pyx__GetModuleGlobalName(name)
+#define __Pyx_GetModuleGlobalNameUncached(var, name)  (var) = __Pyx__GetModuleGlobalName(name)
+static CYTHON_INLINE PyObject *__Pyx__GetModuleGlobalName(PyObject *name);
+#endif
+
+/* PyIntBinop.proto */
+#if !CYTHON_COMPILING_IN_PYPY
+static PyObject* __Pyx_PyInt_TrueDivideObjC(PyObject *op1, PyObject *op2, long intval, int inplace, int zerodivision_check);
+#else
+#define __Pyx_PyInt_TrueDivideObjC(op1, op2, intval, inplace, zerodivision_check)\
+    (inplace ? PyNumber_InPlaceTrueDivide(op1, op2) : PyNumber_TrueDivide(op1, op2))
+#endif
+
 /* TypeImport.proto */
 #ifndef __PYX_HAVE_RT_ImportType_proto_3_0_11
 #define __PYX_HAVE_RT_ImportType_proto_3_0_11
@@ -2376,32 +2435,6 @@ static PyObject *__Pyx_CyFunction_New(PyMethodDef *ml,
                                       PyObject *module, PyObject *globals,
                                       PyObject* code);
 
-/* PyDictVersioning.proto */
-#if CYTHON_USE_DICT_VERSIONS && CYTHON_USE_TYPE_SLOTS
-#define __PYX_DICT_VERSION_INIT  ((PY_UINT64_T) -1)
-#define __PYX_GET_DICT_VERSION(dict)  (((PyDictObject*)(dict))->ma_version_tag)
-#define __PYX_UPDATE_DICT_CACHE(dict, value, cache_var, version_var)\
-    (version_var) = __PYX_GET_DICT_VERSION(dict);\
-    (cache_var) = (value);
-#define __PYX_PY_DICT_LOOKUP_IF_MODIFIED(VAR, DICT, LOOKUP) {\
-    static PY_UINT64_T __pyx_dict_version = 0;\
-    static PyObject *__pyx_dict_cached_value = NULL;\
-    if (likely(__PYX_GET_DICT_VERSION(DICT) == __pyx_dict_version)) {\
-        (VAR) = __pyx_dict_cached_value;\
-    } else {\
-        (VAR) = __pyx_dict_cached_value = (LOOKUP);\
-        __pyx_dict_version = __PYX_GET_DICT_VERSION(DICT);\
-    }\
-}
-static CYTHON_INLINE PY_UINT64_T __Pyx_get_tp_dict_version(PyObject *obj);
-static CYTHON_INLINE PY_UINT64_T __Pyx_get_object_dict_version(PyObject *obj);
-static CYTHON_INLINE int __Pyx_object_dict_version_matches(PyObject* obj, PY_UINT64_T tp_dict_version, PY_UINT64_T obj_dict_version);
-#else
-#define __PYX_GET_DICT_VERSION(dict)  (0)
-#define __PYX_UPDATE_DICT_CACHE(dict, value, cache_var, version_var)
-#define __PYX_PY_DICT_LOOKUP_IF_MODIFIED(VAR, DICT, LOOKUP)  (VAR) = (LOOKUP);
-#endif
-
 /* CLineInTraceback.proto */
 #ifdef CYTHON_CLINE_IN_TRACEBACK
 #define __Pyx_CLineForTraceback(tstate, c_line)  (((CYTHON_CLINE_IN_TRACEBACK)) ? c_line : 0)
@@ -2493,11 +2526,6 @@ static void __Pyx_CppExn2PyErr() {
     PyErr_SetString(PyExc_RuntimeError, "Unknown exception");
   }
 }
-#endif
-
-/* GCCDiagnostics.proto */
-#if !defined(__INTEL_COMPILER) && defined(__GNUC__) && (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 6))
-#define __Pyx_HAS_GCC_DIAGNOSTIC
 #endif
 
 /* RealImag.proto */
@@ -2636,9 +2664,6 @@ static void __Pyx_CppExn2PyErr() {
     #endif
 #endif
 
-/* CIntToPy.proto */
-static CYTHON_INLINE PyObject* __Pyx_PyInt_From_int(int value);
-
 /* FormatTypeName.proto */
 #if CYTHON_COMPILING_IN_LIMITED_API
 typedef PyObject *__Pyx_TypeName;
@@ -2650,6 +2675,11 @@ typedef const char *__Pyx_TypeName;
 #define __Pyx_FMT_TYPENAME "%.200s"
 #define __Pyx_PyType_GetName(tp) ((tp)->tp_name)
 #define __Pyx_DECREF_TypeName(obj)
+#endif
+
+/* GCCDiagnostics.proto */
+#if !defined(__INTEL_COMPILER) && defined(__GNUC__) && (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 6))
+#define __Pyx_HAS_GCC_DIAGNOSTIC
 #endif
 
 /* CIntToPy.proto */
@@ -2738,9 +2768,10 @@ static CYTHON_INLINE char *__pyx_f_5numpy_7ndarray_4data_data(PyArrayObject *__p
 static Coordinate __pyx_f_4ppme_np_to_coordinate(PyArrayObject *); /*proto*/
 static Trajectory __pyx_f_4ppme_np_to_trajectory(PyArrayObject *); /*proto*/
 static std::vector<Trajectory>  __pyx_f_4ppme_list_to_vector(PyObject *); /*proto*/
-static PyObject *__pyx_f_4ppme_result_map_to_dict(ResultMap); /*proto*/
+static PyObject *__pyx_f_4ppme_start_map_to_dict(StartMap); /*proto*/
+static PyObject *__pyx_f_4ppme_result_map_to_dict(PrefixMap); /*proto*/
 /* #### Code section: typeinfo ### */
-static __Pyx_TypeInfo __Pyx_TypeInfo_nn___pyx_t_5numpy_float64_t = { "float64_t", NULL, sizeof(__pyx_t_5numpy_float64_t), { 0 }, 0, 'R', 0, 0 };
+static __Pyx_TypeInfo __Pyx_TypeInfo_nn_npy_float64 = { "npy_float64", NULL, sizeof(npy_float64), { 0 }, 0, 'R', 0, 0 };
 /* #### Code section: before_global_var ### */
 #define __Pyx_MODULE_NAME "ppme"
 extern int __pyx_module_is_main_ppme;
@@ -2752,38 +2783,55 @@ static PyObject *__pyx_builtin_TypeError;
 static PyObject *__pyx_builtin_print;
 static PyObject *__pyx_builtin_ImportError;
 /* #### Code section: string_decls ### */
-static const char __pyx_k__7[] = ".";
-static const char __pyx_k__8[] = "*";
 static const char __pyx_k_np[] = "np";
-static const char __pyx_k__11[] = "?";
+static const char __pyx_k__12[] = ".";
+static const char __pyx_k__13[] = "*";
+static const char __pyx_k__16[] = "?";
+static const char __pyx_k_end[] = "end";
 static const char __pyx_k_main[] = "__main__";
 static const char __pyx_k_name[] = "__name__";
 static const char __pyx_k_ppme[] = "ppme";
 static const char __pyx_k_spec[] = "__spec__";
 static const char __pyx_k_test[] = "__test__";
+static const char __pyx_k_time[] = "time";
 static const char __pyx_k_tqdm[] = "tqdm";
 static const char __pyx_k_numpy[] = "numpy";
 static const char __pyx_k_print[] = "print";
+static const char __pyx_k_start[] = "start";
 static const char __pyx_k_import[] = "__import__";
 static const char __pyx_k_result[] = "result";
 static const char __pyx_k_instead[] = " instead.";
+static const char __pyx_k_minutes[] = " minutes\n";
+static const char __pyx_k_seconds[] = " seconds\n";
 static const char __pyx_k_ppme_pyx[] = "ppme.pyx";
 static const char __pyx_k_TypeError[] = "TypeError";
+static const char __pyx_k_start_map[] = "start_map";
 static const char __pyx_k_ImportError[] = "ImportError";
 static const char __pyx_k_collections[] = "collections";
 static const char __pyx_k_defaultdict[] = "defaultdict";
 static const char __pyx_k_initializing[] = "_initializing";
 static const char __pyx_k_is_coroutine[] = "_is_coroutine";
+static const char __pyx_k_py_start_map[] = "py_start_map";
 static const char __pyx_k_trajectories[] = "trajectories";
+static const char __pyx_k_py_prefix_map[] = "py_prefix_map";
 static const char __pyx_k_py_trajectories[] = "py_trajectories";
 static const char __pyx_k_process_prefix_py[] = "process_prefix_py";
 static const char __pyx_k_asyncio_coroutines[] = "asyncio.coroutines";
 static const char __pyx_k_cline_in_traceback[] = "cline_in_traceback";
 static const char __pyx_k_Processing_prefixes[] = "Processing prefixes...";
+static const char __pyx_k_Time_taken_to_compute[] = "Time taken to compute: ";
+static const char __pyx_k_Time_taken_to_convert[] = "Time taken to convert: ";
 static const char __pyx_k_Done_processing_prefixes[] = "Done processing prefixes";
 static const char __pyx_k_Expected_NumPy_array_got[] = "Expected NumPy array, got ";
-static const char __pyx_k_Converting_ResultMap_to_Python_d[] = "Converting ResultMap to Python dictionary...";
+static const char __pyx_k_Begin_processing_prefixes[] = "Begin processing prefixes...";
+static const char __pyx_k_Begin_to_compute_start_map[] = "Begin to compute start map...";
+static const char __pyx_k_Finished_computing_start_map[] = "Finished computing start map";
+static const char __pyx_k_Time_taken_to_compute_start_map[] = "Time taken to compute start map: ";
+static const char __pyx_k_Time_taken_to_convert_to_Python[] = "Time taken to convert to Python object: ";
+static const char __pyx_k_Converting_PrefixMap_to_Python_d[] = "Converting PrefixMap to Python dictionary...";
+static const char __pyx_k_Converting_StartMap_to_Python_di[] = "Converting StartMap to Python dictionary...";
 static const char __pyx_k_Done_converting_to_C_Trajectorie[] = "Done converting to C++ Trajectories";
+static const char __pyx_k_Done_converting_to_Python_dictio[] = "Done converting to Python dictionary";
 static const char __pyx_k_numpy__core_multiarray_failed_to[] = "numpy._core.multiarray failed to import";
 static const char __pyx_k_numpy__core_umath_failed_to_impo[] = "numpy._core.umath failed to import";
 /* #### Code section: decls ### */
@@ -2861,25 +2909,36 @@ typedef struct {
   #endif
   #if CYTHON_USE_MODULE_STATE
   #endif
-  PyObject *__pyx_kp_u_Converting_ResultMap_to_Python_d;
+  PyObject *__pyx_kp_u_Begin_processing_prefixes;
+  PyObject *__pyx_kp_u_Begin_to_compute_start_map;
+  PyObject *__pyx_kp_u_Converting_PrefixMap_to_Python_d;
+  PyObject *__pyx_kp_u_Converting_StartMap_to_Python_di;
   PyObject *__pyx_kp_u_Done_converting_to_C_Trajectorie;
+  PyObject *__pyx_kp_u_Done_converting_to_Python_dictio;
   PyObject *__pyx_kp_u_Done_processing_prefixes;
   PyObject *__pyx_kp_u_Expected_NumPy_array_got;
+  PyObject *__pyx_kp_u_Finished_computing_start_map;
   PyObject *__pyx_n_s_ImportError;
   PyObject *__pyx_kp_u_Processing_prefixes;
+  PyObject *__pyx_kp_u_Time_taken_to_compute;
+  PyObject *__pyx_kp_u_Time_taken_to_compute_start_map;
+  PyObject *__pyx_kp_u_Time_taken_to_convert;
+  PyObject *__pyx_kp_u_Time_taken_to_convert_to_Python;
   PyObject *__pyx_n_s_TypeError;
-  PyObject *__pyx_n_s__11;
-  PyObject *__pyx_kp_u__7;
-  PyObject *__pyx_n_s__8;
+  PyObject *__pyx_kp_u__12;
+  PyObject *__pyx_n_s__13;
+  PyObject *__pyx_n_s__16;
   PyObject *__pyx_n_s_asyncio_coroutines;
   PyObject *__pyx_n_s_cline_in_traceback;
   PyObject *__pyx_n_s_collections;
   PyObject *__pyx_n_s_defaultdict;
+  PyObject *__pyx_n_s_end;
   PyObject *__pyx_n_s_import;
   PyObject *__pyx_n_s_initializing;
   PyObject *__pyx_kp_u_instead;
   PyObject *__pyx_n_s_is_coroutine;
   PyObject *__pyx_n_s_main;
+  PyObject *__pyx_kp_u_minutes;
   PyObject *__pyx_n_s_name;
   PyObject *__pyx_n_s_np;
   PyObject *__pyx_n_s_numpy;
@@ -2889,20 +2948,32 @@ typedef struct {
   PyObject *__pyx_kp_s_ppme_pyx;
   PyObject *__pyx_n_s_print;
   PyObject *__pyx_n_s_process_prefix_py;
+  PyObject *__pyx_n_s_py_prefix_map;
+  PyObject *__pyx_n_s_py_start_map;
   PyObject *__pyx_n_s_py_trajectories;
   PyObject *__pyx_n_s_result;
+  PyObject *__pyx_kp_u_seconds;
   PyObject *__pyx_n_s_spec;
+  PyObject *__pyx_n_s_start;
+  PyObject *__pyx_n_s_start_map;
   PyObject *__pyx_n_s_test;
+  PyObject *__pyx_n_s_time;
   PyObject *__pyx_n_s_tqdm;
   PyObject *__pyx_n_s_trajectories;
+  PyObject *__pyx_int_60;
   PyObject *__pyx_tuple_;
   PyObject *__pyx_tuple__2;
   PyObject *__pyx_tuple__3;
   PyObject *__pyx_tuple__4;
   PyObject *__pyx_tuple__5;
   PyObject *__pyx_tuple__6;
+  PyObject *__pyx_tuple__7;
+  PyObject *__pyx_tuple__8;
   PyObject *__pyx_tuple__9;
-  PyObject *__pyx_codeobj__10;
+  PyObject *__pyx_tuple__10;
+  PyObject *__pyx_tuple__11;
+  PyObject *__pyx_tuple__14;
+  PyObject *__pyx_codeobj__15;
 } __pyx_mstate;
 
 #if CYTHON_USE_MODULE_STATE
@@ -2961,25 +3032,36 @@ static int __pyx_m_clear(PyObject *m) {
   Py_CLEAR(clear_module_state->__pyx_ptype_5numpy_flexible);
   Py_CLEAR(clear_module_state->__pyx_ptype_5numpy_character);
   Py_CLEAR(clear_module_state->__pyx_ptype_5numpy_ufunc);
-  Py_CLEAR(clear_module_state->__pyx_kp_u_Converting_ResultMap_to_Python_d);
+  Py_CLEAR(clear_module_state->__pyx_kp_u_Begin_processing_prefixes);
+  Py_CLEAR(clear_module_state->__pyx_kp_u_Begin_to_compute_start_map);
+  Py_CLEAR(clear_module_state->__pyx_kp_u_Converting_PrefixMap_to_Python_d);
+  Py_CLEAR(clear_module_state->__pyx_kp_u_Converting_StartMap_to_Python_di);
   Py_CLEAR(clear_module_state->__pyx_kp_u_Done_converting_to_C_Trajectorie);
+  Py_CLEAR(clear_module_state->__pyx_kp_u_Done_converting_to_Python_dictio);
   Py_CLEAR(clear_module_state->__pyx_kp_u_Done_processing_prefixes);
   Py_CLEAR(clear_module_state->__pyx_kp_u_Expected_NumPy_array_got);
+  Py_CLEAR(clear_module_state->__pyx_kp_u_Finished_computing_start_map);
   Py_CLEAR(clear_module_state->__pyx_n_s_ImportError);
   Py_CLEAR(clear_module_state->__pyx_kp_u_Processing_prefixes);
+  Py_CLEAR(clear_module_state->__pyx_kp_u_Time_taken_to_compute);
+  Py_CLEAR(clear_module_state->__pyx_kp_u_Time_taken_to_compute_start_map);
+  Py_CLEAR(clear_module_state->__pyx_kp_u_Time_taken_to_convert);
+  Py_CLEAR(clear_module_state->__pyx_kp_u_Time_taken_to_convert_to_Python);
   Py_CLEAR(clear_module_state->__pyx_n_s_TypeError);
-  Py_CLEAR(clear_module_state->__pyx_n_s__11);
-  Py_CLEAR(clear_module_state->__pyx_kp_u__7);
-  Py_CLEAR(clear_module_state->__pyx_n_s__8);
+  Py_CLEAR(clear_module_state->__pyx_kp_u__12);
+  Py_CLEAR(clear_module_state->__pyx_n_s__13);
+  Py_CLEAR(clear_module_state->__pyx_n_s__16);
   Py_CLEAR(clear_module_state->__pyx_n_s_asyncio_coroutines);
   Py_CLEAR(clear_module_state->__pyx_n_s_cline_in_traceback);
   Py_CLEAR(clear_module_state->__pyx_n_s_collections);
   Py_CLEAR(clear_module_state->__pyx_n_s_defaultdict);
+  Py_CLEAR(clear_module_state->__pyx_n_s_end);
   Py_CLEAR(clear_module_state->__pyx_n_s_import);
   Py_CLEAR(clear_module_state->__pyx_n_s_initializing);
   Py_CLEAR(clear_module_state->__pyx_kp_u_instead);
   Py_CLEAR(clear_module_state->__pyx_n_s_is_coroutine);
   Py_CLEAR(clear_module_state->__pyx_n_s_main);
+  Py_CLEAR(clear_module_state->__pyx_kp_u_minutes);
   Py_CLEAR(clear_module_state->__pyx_n_s_name);
   Py_CLEAR(clear_module_state->__pyx_n_s_np);
   Py_CLEAR(clear_module_state->__pyx_n_s_numpy);
@@ -2989,20 +3071,32 @@ static int __pyx_m_clear(PyObject *m) {
   Py_CLEAR(clear_module_state->__pyx_kp_s_ppme_pyx);
   Py_CLEAR(clear_module_state->__pyx_n_s_print);
   Py_CLEAR(clear_module_state->__pyx_n_s_process_prefix_py);
+  Py_CLEAR(clear_module_state->__pyx_n_s_py_prefix_map);
+  Py_CLEAR(clear_module_state->__pyx_n_s_py_start_map);
   Py_CLEAR(clear_module_state->__pyx_n_s_py_trajectories);
   Py_CLEAR(clear_module_state->__pyx_n_s_result);
+  Py_CLEAR(clear_module_state->__pyx_kp_u_seconds);
   Py_CLEAR(clear_module_state->__pyx_n_s_spec);
+  Py_CLEAR(clear_module_state->__pyx_n_s_start);
+  Py_CLEAR(clear_module_state->__pyx_n_s_start_map);
   Py_CLEAR(clear_module_state->__pyx_n_s_test);
+  Py_CLEAR(clear_module_state->__pyx_n_s_time);
   Py_CLEAR(clear_module_state->__pyx_n_s_tqdm);
   Py_CLEAR(clear_module_state->__pyx_n_s_trajectories);
+  Py_CLEAR(clear_module_state->__pyx_int_60);
   Py_CLEAR(clear_module_state->__pyx_tuple_);
   Py_CLEAR(clear_module_state->__pyx_tuple__2);
   Py_CLEAR(clear_module_state->__pyx_tuple__3);
   Py_CLEAR(clear_module_state->__pyx_tuple__4);
   Py_CLEAR(clear_module_state->__pyx_tuple__5);
   Py_CLEAR(clear_module_state->__pyx_tuple__6);
+  Py_CLEAR(clear_module_state->__pyx_tuple__7);
+  Py_CLEAR(clear_module_state->__pyx_tuple__8);
   Py_CLEAR(clear_module_state->__pyx_tuple__9);
-  Py_CLEAR(clear_module_state->__pyx_codeobj__10);
+  Py_CLEAR(clear_module_state->__pyx_tuple__10);
+  Py_CLEAR(clear_module_state->__pyx_tuple__11);
+  Py_CLEAR(clear_module_state->__pyx_tuple__14);
+  Py_CLEAR(clear_module_state->__pyx_codeobj__15);
   return 0;
 }
 #endif
@@ -3039,25 +3133,36 @@ static int __pyx_m_traverse(PyObject *m, visitproc visit, void *arg) {
   Py_VISIT(traverse_module_state->__pyx_ptype_5numpy_flexible);
   Py_VISIT(traverse_module_state->__pyx_ptype_5numpy_character);
   Py_VISIT(traverse_module_state->__pyx_ptype_5numpy_ufunc);
-  Py_VISIT(traverse_module_state->__pyx_kp_u_Converting_ResultMap_to_Python_d);
+  Py_VISIT(traverse_module_state->__pyx_kp_u_Begin_processing_prefixes);
+  Py_VISIT(traverse_module_state->__pyx_kp_u_Begin_to_compute_start_map);
+  Py_VISIT(traverse_module_state->__pyx_kp_u_Converting_PrefixMap_to_Python_d);
+  Py_VISIT(traverse_module_state->__pyx_kp_u_Converting_StartMap_to_Python_di);
   Py_VISIT(traverse_module_state->__pyx_kp_u_Done_converting_to_C_Trajectorie);
+  Py_VISIT(traverse_module_state->__pyx_kp_u_Done_converting_to_Python_dictio);
   Py_VISIT(traverse_module_state->__pyx_kp_u_Done_processing_prefixes);
   Py_VISIT(traverse_module_state->__pyx_kp_u_Expected_NumPy_array_got);
+  Py_VISIT(traverse_module_state->__pyx_kp_u_Finished_computing_start_map);
   Py_VISIT(traverse_module_state->__pyx_n_s_ImportError);
   Py_VISIT(traverse_module_state->__pyx_kp_u_Processing_prefixes);
+  Py_VISIT(traverse_module_state->__pyx_kp_u_Time_taken_to_compute);
+  Py_VISIT(traverse_module_state->__pyx_kp_u_Time_taken_to_compute_start_map);
+  Py_VISIT(traverse_module_state->__pyx_kp_u_Time_taken_to_convert);
+  Py_VISIT(traverse_module_state->__pyx_kp_u_Time_taken_to_convert_to_Python);
   Py_VISIT(traverse_module_state->__pyx_n_s_TypeError);
-  Py_VISIT(traverse_module_state->__pyx_n_s__11);
-  Py_VISIT(traverse_module_state->__pyx_kp_u__7);
-  Py_VISIT(traverse_module_state->__pyx_n_s__8);
+  Py_VISIT(traverse_module_state->__pyx_kp_u__12);
+  Py_VISIT(traverse_module_state->__pyx_n_s__13);
+  Py_VISIT(traverse_module_state->__pyx_n_s__16);
   Py_VISIT(traverse_module_state->__pyx_n_s_asyncio_coroutines);
   Py_VISIT(traverse_module_state->__pyx_n_s_cline_in_traceback);
   Py_VISIT(traverse_module_state->__pyx_n_s_collections);
   Py_VISIT(traverse_module_state->__pyx_n_s_defaultdict);
+  Py_VISIT(traverse_module_state->__pyx_n_s_end);
   Py_VISIT(traverse_module_state->__pyx_n_s_import);
   Py_VISIT(traverse_module_state->__pyx_n_s_initializing);
   Py_VISIT(traverse_module_state->__pyx_kp_u_instead);
   Py_VISIT(traverse_module_state->__pyx_n_s_is_coroutine);
   Py_VISIT(traverse_module_state->__pyx_n_s_main);
+  Py_VISIT(traverse_module_state->__pyx_kp_u_minutes);
   Py_VISIT(traverse_module_state->__pyx_n_s_name);
   Py_VISIT(traverse_module_state->__pyx_n_s_np);
   Py_VISIT(traverse_module_state->__pyx_n_s_numpy);
@@ -3067,20 +3172,32 @@ static int __pyx_m_traverse(PyObject *m, visitproc visit, void *arg) {
   Py_VISIT(traverse_module_state->__pyx_kp_s_ppme_pyx);
   Py_VISIT(traverse_module_state->__pyx_n_s_print);
   Py_VISIT(traverse_module_state->__pyx_n_s_process_prefix_py);
+  Py_VISIT(traverse_module_state->__pyx_n_s_py_prefix_map);
+  Py_VISIT(traverse_module_state->__pyx_n_s_py_start_map);
   Py_VISIT(traverse_module_state->__pyx_n_s_py_trajectories);
   Py_VISIT(traverse_module_state->__pyx_n_s_result);
+  Py_VISIT(traverse_module_state->__pyx_kp_u_seconds);
   Py_VISIT(traverse_module_state->__pyx_n_s_spec);
+  Py_VISIT(traverse_module_state->__pyx_n_s_start);
+  Py_VISIT(traverse_module_state->__pyx_n_s_start_map);
   Py_VISIT(traverse_module_state->__pyx_n_s_test);
+  Py_VISIT(traverse_module_state->__pyx_n_s_time);
   Py_VISIT(traverse_module_state->__pyx_n_s_tqdm);
   Py_VISIT(traverse_module_state->__pyx_n_s_trajectories);
+  Py_VISIT(traverse_module_state->__pyx_int_60);
   Py_VISIT(traverse_module_state->__pyx_tuple_);
   Py_VISIT(traverse_module_state->__pyx_tuple__2);
   Py_VISIT(traverse_module_state->__pyx_tuple__3);
   Py_VISIT(traverse_module_state->__pyx_tuple__4);
   Py_VISIT(traverse_module_state->__pyx_tuple__5);
   Py_VISIT(traverse_module_state->__pyx_tuple__6);
+  Py_VISIT(traverse_module_state->__pyx_tuple__7);
+  Py_VISIT(traverse_module_state->__pyx_tuple__8);
   Py_VISIT(traverse_module_state->__pyx_tuple__9);
-  Py_VISIT(traverse_module_state->__pyx_codeobj__10);
+  Py_VISIT(traverse_module_state->__pyx_tuple__10);
+  Py_VISIT(traverse_module_state->__pyx_tuple__11);
+  Py_VISIT(traverse_module_state->__pyx_tuple__14);
+  Py_VISIT(traverse_module_state->__pyx_codeobj__15);
   return 0;
 }
 #endif
@@ -3155,25 +3272,36 @@ static int __pyx_m_traverse(PyObject *m, visitproc visit, void *arg) {
 #endif
 #if CYTHON_USE_MODULE_STATE
 #endif
-#define __pyx_kp_u_Converting_ResultMap_to_Python_d __pyx_mstate_global->__pyx_kp_u_Converting_ResultMap_to_Python_d
+#define __pyx_kp_u_Begin_processing_prefixes __pyx_mstate_global->__pyx_kp_u_Begin_processing_prefixes
+#define __pyx_kp_u_Begin_to_compute_start_map __pyx_mstate_global->__pyx_kp_u_Begin_to_compute_start_map
+#define __pyx_kp_u_Converting_PrefixMap_to_Python_d __pyx_mstate_global->__pyx_kp_u_Converting_PrefixMap_to_Python_d
+#define __pyx_kp_u_Converting_StartMap_to_Python_di __pyx_mstate_global->__pyx_kp_u_Converting_StartMap_to_Python_di
 #define __pyx_kp_u_Done_converting_to_C_Trajectorie __pyx_mstate_global->__pyx_kp_u_Done_converting_to_C_Trajectorie
+#define __pyx_kp_u_Done_converting_to_Python_dictio __pyx_mstate_global->__pyx_kp_u_Done_converting_to_Python_dictio
 #define __pyx_kp_u_Done_processing_prefixes __pyx_mstate_global->__pyx_kp_u_Done_processing_prefixes
 #define __pyx_kp_u_Expected_NumPy_array_got __pyx_mstate_global->__pyx_kp_u_Expected_NumPy_array_got
+#define __pyx_kp_u_Finished_computing_start_map __pyx_mstate_global->__pyx_kp_u_Finished_computing_start_map
 #define __pyx_n_s_ImportError __pyx_mstate_global->__pyx_n_s_ImportError
 #define __pyx_kp_u_Processing_prefixes __pyx_mstate_global->__pyx_kp_u_Processing_prefixes
+#define __pyx_kp_u_Time_taken_to_compute __pyx_mstate_global->__pyx_kp_u_Time_taken_to_compute
+#define __pyx_kp_u_Time_taken_to_compute_start_map __pyx_mstate_global->__pyx_kp_u_Time_taken_to_compute_start_map
+#define __pyx_kp_u_Time_taken_to_convert __pyx_mstate_global->__pyx_kp_u_Time_taken_to_convert
+#define __pyx_kp_u_Time_taken_to_convert_to_Python __pyx_mstate_global->__pyx_kp_u_Time_taken_to_convert_to_Python
 #define __pyx_n_s_TypeError __pyx_mstate_global->__pyx_n_s_TypeError
-#define __pyx_n_s__11 __pyx_mstate_global->__pyx_n_s__11
-#define __pyx_kp_u__7 __pyx_mstate_global->__pyx_kp_u__7
-#define __pyx_n_s__8 __pyx_mstate_global->__pyx_n_s__8
+#define __pyx_kp_u__12 __pyx_mstate_global->__pyx_kp_u__12
+#define __pyx_n_s__13 __pyx_mstate_global->__pyx_n_s__13
+#define __pyx_n_s__16 __pyx_mstate_global->__pyx_n_s__16
 #define __pyx_n_s_asyncio_coroutines __pyx_mstate_global->__pyx_n_s_asyncio_coroutines
 #define __pyx_n_s_cline_in_traceback __pyx_mstate_global->__pyx_n_s_cline_in_traceback
 #define __pyx_n_s_collections __pyx_mstate_global->__pyx_n_s_collections
 #define __pyx_n_s_defaultdict __pyx_mstate_global->__pyx_n_s_defaultdict
+#define __pyx_n_s_end __pyx_mstate_global->__pyx_n_s_end
 #define __pyx_n_s_import __pyx_mstate_global->__pyx_n_s_import
 #define __pyx_n_s_initializing __pyx_mstate_global->__pyx_n_s_initializing
 #define __pyx_kp_u_instead __pyx_mstate_global->__pyx_kp_u_instead
 #define __pyx_n_s_is_coroutine __pyx_mstate_global->__pyx_n_s_is_coroutine
 #define __pyx_n_s_main __pyx_mstate_global->__pyx_n_s_main
+#define __pyx_kp_u_minutes __pyx_mstate_global->__pyx_kp_u_minutes
 #define __pyx_n_s_name __pyx_mstate_global->__pyx_n_s_name
 #define __pyx_n_s_np __pyx_mstate_global->__pyx_n_s_np
 #define __pyx_n_s_numpy __pyx_mstate_global->__pyx_n_s_numpy
@@ -3183,20 +3311,32 @@ static int __pyx_m_traverse(PyObject *m, visitproc visit, void *arg) {
 #define __pyx_kp_s_ppme_pyx __pyx_mstate_global->__pyx_kp_s_ppme_pyx
 #define __pyx_n_s_print __pyx_mstate_global->__pyx_n_s_print
 #define __pyx_n_s_process_prefix_py __pyx_mstate_global->__pyx_n_s_process_prefix_py
+#define __pyx_n_s_py_prefix_map __pyx_mstate_global->__pyx_n_s_py_prefix_map
+#define __pyx_n_s_py_start_map __pyx_mstate_global->__pyx_n_s_py_start_map
 #define __pyx_n_s_py_trajectories __pyx_mstate_global->__pyx_n_s_py_trajectories
 #define __pyx_n_s_result __pyx_mstate_global->__pyx_n_s_result
+#define __pyx_kp_u_seconds __pyx_mstate_global->__pyx_kp_u_seconds
 #define __pyx_n_s_spec __pyx_mstate_global->__pyx_n_s_spec
+#define __pyx_n_s_start __pyx_mstate_global->__pyx_n_s_start
+#define __pyx_n_s_start_map __pyx_mstate_global->__pyx_n_s_start_map
 #define __pyx_n_s_test __pyx_mstate_global->__pyx_n_s_test
+#define __pyx_n_s_time __pyx_mstate_global->__pyx_n_s_time
 #define __pyx_n_s_tqdm __pyx_mstate_global->__pyx_n_s_tqdm
 #define __pyx_n_s_trajectories __pyx_mstate_global->__pyx_n_s_trajectories
+#define __pyx_int_60 __pyx_mstate_global->__pyx_int_60
 #define __pyx_tuple_ __pyx_mstate_global->__pyx_tuple_
 #define __pyx_tuple__2 __pyx_mstate_global->__pyx_tuple__2
 #define __pyx_tuple__3 __pyx_mstate_global->__pyx_tuple__3
 #define __pyx_tuple__4 __pyx_mstate_global->__pyx_tuple__4
 #define __pyx_tuple__5 __pyx_mstate_global->__pyx_tuple__5
 #define __pyx_tuple__6 __pyx_mstate_global->__pyx_tuple__6
+#define __pyx_tuple__7 __pyx_mstate_global->__pyx_tuple__7
+#define __pyx_tuple__8 __pyx_mstate_global->__pyx_tuple__8
 #define __pyx_tuple__9 __pyx_mstate_global->__pyx_tuple__9
-#define __pyx_codeobj__10 __pyx_mstate_global->__pyx_codeobj__10
+#define __pyx_tuple__10 __pyx_mstate_global->__pyx_tuple__10
+#define __pyx_tuple__11 __pyx_mstate_global->__pyx_tuple__11
+#define __pyx_tuple__14 __pyx_mstate_global->__pyx_tuple__14
+#define __pyx_codeobj__15 __pyx_mstate_global->__pyx_codeobj__15
 /* #### Code section: module_code ### */
 
 /* "../../../.local/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":287
@@ -4889,10 +5029,10 @@ static CYTHON_INLINE NPY_DATETIMEUNIT __pyx_f_5numpy_get_datetime64_unit(PyObjec
   return __pyx_r;
 }
 
-/* "ppme.pyx":29
+/* "ppme.pyx":32
  * 
  * # convert NumPy array to a fixed sized C++ array
- * cdef Coordinate np_to_coordinate(cnp.ndarray[cnp.float64_t, ndim=1] arr):             # <<<<<<<<<<<<<<
+ * cdef Coordinate np_to_coordinate(cnp.ndarray[cnp.npy_float64, ndim=1] arr):             # <<<<<<<<<<<<<<
  *     cdef Coordinate coord
  * 
  */
@@ -4913,11 +5053,11 @@ static Coordinate __pyx_f_4ppme_np_to_coordinate(PyArrayObject *__pyx_v_arr) {
   __pyx_pybuffernd_arr.rcbuffer = &__pyx_pybuffer_arr;
   {
     __Pyx_BufFmt_StackElem __pyx_stack[1];
-    if (unlikely(__Pyx_GetBufferAndValidate(&__pyx_pybuffernd_arr.rcbuffer->pybuffer, (PyObject*)__pyx_v_arr, &__Pyx_TypeInfo_nn___pyx_t_5numpy_float64_t, PyBUF_FORMAT| PyBUF_STRIDES, 1, 0, __pyx_stack) == -1)) __PYX_ERR(0, 29, __pyx_L1_error)
+    if (unlikely(__Pyx_GetBufferAndValidate(&__pyx_pybuffernd_arr.rcbuffer->pybuffer, (PyObject*)__pyx_v_arr, &__Pyx_TypeInfo_nn_npy_float64, PyBUF_FORMAT| PyBUF_STRIDES, 1, 0, __pyx_stack) == -1)) __PYX_ERR(0, 32, __pyx_L1_error)
   }
   __pyx_pybuffernd_arr.diminfo[0].strides = __pyx_pybuffernd_arr.rcbuffer->pybuffer.strides[0]; __pyx_pybuffernd_arr.diminfo[0].shape = __pyx_pybuffernd_arr.rcbuffer->pybuffer.shape[0];
 
-  /* "ppme.pyx":32
+  /* "ppme.pyx":35
  *     cdef Coordinate coord
  * 
  *     coord.data[0] = arr[0]             # <<<<<<<<<<<<<<
@@ -4932,11 +5072,11 @@ static Coordinate __pyx_f_4ppme_np_to_coordinate(PyArrayObject *__pyx_v_arr) {
   } else if (unlikely(__pyx_t_1 >= __pyx_pybuffernd_arr.diminfo[0].shape)) __pyx_t_2 = 0;
   if (unlikely(__pyx_t_2 != -1)) {
     __Pyx_RaiseBufferIndexError(__pyx_t_2);
-    __PYX_ERR(0, 32, __pyx_L1_error)
+    __PYX_ERR(0, 35, __pyx_L1_error)
   }
-  (__pyx_v_coord.data[0]) = (*__Pyx_BufPtrStrided1d(__pyx_t_5numpy_float64_t *, __pyx_pybuffernd_arr.rcbuffer->pybuffer.buf, __pyx_t_1, __pyx_pybuffernd_arr.diminfo[0].strides));
+  (__pyx_v_coord.data[0]) = (*__Pyx_BufPtrStrided1d(npy_float64 *, __pyx_pybuffernd_arr.rcbuffer->pybuffer.buf, __pyx_t_1, __pyx_pybuffernd_arr.diminfo[0].strides));
 
-  /* "ppme.pyx":33
+  /* "ppme.pyx":36
  * 
  *     coord.data[0] = arr[0]
  *     coord.data[1] = arr[1]             # <<<<<<<<<<<<<<
@@ -4951,11 +5091,11 @@ static Coordinate __pyx_f_4ppme_np_to_coordinate(PyArrayObject *__pyx_v_arr) {
   } else if (unlikely(__pyx_t_1 >= __pyx_pybuffernd_arr.diminfo[0].shape)) __pyx_t_2 = 0;
   if (unlikely(__pyx_t_2 != -1)) {
     __Pyx_RaiseBufferIndexError(__pyx_t_2);
-    __PYX_ERR(0, 33, __pyx_L1_error)
+    __PYX_ERR(0, 36, __pyx_L1_error)
   }
-  (__pyx_v_coord.data[1]) = (*__Pyx_BufPtrStrided1d(__pyx_t_5numpy_float64_t *, __pyx_pybuffernd_arr.rcbuffer->pybuffer.buf, __pyx_t_1, __pyx_pybuffernd_arr.diminfo[0].strides));
+  (__pyx_v_coord.data[1]) = (*__Pyx_BufPtrStrided1d(npy_float64 *, __pyx_pybuffernd_arr.rcbuffer->pybuffer.buf, __pyx_t_1, __pyx_pybuffernd_arr.diminfo[0].strides));
 
-  /* "ppme.pyx":34
+  /* "ppme.pyx":37
  *     coord.data[0] = arr[0]
  *     coord.data[1] = arr[1]
  *     return coord             # <<<<<<<<<<<<<<
@@ -4965,10 +5105,10 @@ static Coordinate __pyx_f_4ppme_np_to_coordinate(PyArrayObject *__pyx_v_arr) {
   __pyx_r = __pyx_v_coord;
   goto __pyx_L0;
 
-  /* "ppme.pyx":29
+  /* "ppme.pyx":32
  * 
  * # convert NumPy array to a fixed sized C++ array
- * cdef Coordinate np_to_coordinate(cnp.ndarray[cnp.float64_t, ndim=1] arr):             # <<<<<<<<<<<<<<
+ * cdef Coordinate np_to_coordinate(cnp.ndarray[cnp.npy_float64, ndim=1] arr):             # <<<<<<<<<<<<<<
  *     cdef Coordinate coord
  * 
  */
@@ -4990,10 +5130,10 @@ static Coordinate __pyx_f_4ppme_np_to_coordinate(PyArrayObject *__pyx_v_arr) {
   return __pyx_r;
 }
 
-/* "ppme.pyx":38
+/* "ppme.pyx":41
  * 
  * # Convert NumPy arrays to C++ Trajectory
- * cdef Trajectory np_to_trajectory(cnp.ndarray[cnp.float64_t, ndim=2] arr):             # <<<<<<<<<<<<<<
+ * cdef Trajectory np_to_trajectory(cnp.ndarray[cnp.npy_float64, ndim=2] arr):             # <<<<<<<<<<<<<<
  *     cdef Trajectory traj
  * 
  */
@@ -5020,11 +5160,11 @@ static Trajectory __pyx_f_4ppme_np_to_trajectory(PyArrayObject *__pyx_v_arr) {
   __pyx_pybuffernd_arr.rcbuffer = &__pyx_pybuffer_arr;
   {
     __Pyx_BufFmt_StackElem __pyx_stack[1];
-    if (unlikely(__Pyx_GetBufferAndValidate(&__pyx_pybuffernd_arr.rcbuffer->pybuffer, (PyObject*)__pyx_v_arr, &__Pyx_TypeInfo_nn___pyx_t_5numpy_float64_t, PyBUF_FORMAT| PyBUF_STRIDES, 2, 0, __pyx_stack) == -1)) __PYX_ERR(0, 38, __pyx_L1_error)
+    if (unlikely(__Pyx_GetBufferAndValidate(&__pyx_pybuffernd_arr.rcbuffer->pybuffer, (PyObject*)__pyx_v_arr, &__Pyx_TypeInfo_nn_npy_float64, PyBUF_FORMAT| PyBUF_STRIDES, 2, 0, __pyx_stack) == -1)) __PYX_ERR(0, 41, __pyx_L1_error)
   }
   __pyx_pybuffernd_arr.diminfo[0].strides = __pyx_pybuffernd_arr.rcbuffer->pybuffer.strides[0]; __pyx_pybuffernd_arr.diminfo[0].shape = __pyx_pybuffernd_arr.rcbuffer->pybuffer.shape[0]; __pyx_pybuffernd_arr.diminfo[1].strides = __pyx_pybuffernd_arr.rcbuffer->pybuffer.strides[1]; __pyx_pybuffernd_arr.diminfo[1].shape = __pyx_pybuffernd_arr.rcbuffer->pybuffer.shape[1];
 
-  /* "ppme.pyx":41
+  /* "ppme.pyx":44
  *     cdef Trajectory traj
  * 
  *     for coord in arr:             # <<<<<<<<<<<<<<
@@ -5036,9 +5176,9 @@ static Trajectory __pyx_f_4ppme_np_to_trajectory(PyArrayObject *__pyx_v_arr) {
     __pyx_t_2 = 0;
     __pyx_t_3 = NULL;
   } else {
-    __pyx_t_2 = -1; __pyx_t_1 = PyObject_GetIter(((PyObject *)__pyx_v_arr)); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 41, __pyx_L1_error)
+    __pyx_t_2 = -1; __pyx_t_1 = PyObject_GetIter(((PyObject *)__pyx_v_arr)); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 44, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_1);
-    __pyx_t_3 = __Pyx_PyObject_GetIterNextFunc(__pyx_t_1); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 41, __pyx_L1_error)
+    __pyx_t_3 = __Pyx_PyObject_GetIterNextFunc(__pyx_t_1); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 44, __pyx_L1_error)
   }
   for (;;) {
     if (likely(!__pyx_t_3)) {
@@ -5046,28 +5186,28 @@ static Trajectory __pyx_f_4ppme_np_to_trajectory(PyArrayObject *__pyx_v_arr) {
         {
           Py_ssize_t __pyx_temp = __Pyx_PyList_GET_SIZE(__pyx_t_1);
           #if !CYTHON_ASSUME_SAFE_MACROS
-          if (unlikely((__pyx_temp < 0))) __PYX_ERR(0, 41, __pyx_L1_error)
+          if (unlikely((__pyx_temp < 0))) __PYX_ERR(0, 44, __pyx_L1_error)
           #endif
           if (__pyx_t_2 >= __pyx_temp) break;
         }
         #if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
-        __pyx_t_4 = PyList_GET_ITEM(__pyx_t_1, __pyx_t_2); __Pyx_INCREF(__pyx_t_4); __pyx_t_2++; if (unlikely((0 < 0))) __PYX_ERR(0, 41, __pyx_L1_error)
+        __pyx_t_4 = PyList_GET_ITEM(__pyx_t_1, __pyx_t_2); __Pyx_INCREF(__pyx_t_4); __pyx_t_2++; if (unlikely((0 < 0))) __PYX_ERR(0, 44, __pyx_L1_error)
         #else
-        __pyx_t_4 = __Pyx_PySequence_ITEM(__pyx_t_1, __pyx_t_2); __pyx_t_2++; if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 41, __pyx_L1_error)
+        __pyx_t_4 = __Pyx_PySequence_ITEM(__pyx_t_1, __pyx_t_2); __pyx_t_2++; if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 44, __pyx_L1_error)
         __Pyx_GOTREF(__pyx_t_4);
         #endif
       } else {
         {
           Py_ssize_t __pyx_temp = __Pyx_PyTuple_GET_SIZE(__pyx_t_1);
           #if !CYTHON_ASSUME_SAFE_MACROS
-          if (unlikely((__pyx_temp < 0))) __PYX_ERR(0, 41, __pyx_L1_error)
+          if (unlikely((__pyx_temp < 0))) __PYX_ERR(0, 44, __pyx_L1_error)
           #endif
           if (__pyx_t_2 >= __pyx_temp) break;
         }
         #if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
-        __pyx_t_4 = PyTuple_GET_ITEM(__pyx_t_1, __pyx_t_2); __Pyx_INCREF(__pyx_t_4); __pyx_t_2++; if (unlikely((0 < 0))) __PYX_ERR(0, 41, __pyx_L1_error)
+        __pyx_t_4 = PyTuple_GET_ITEM(__pyx_t_1, __pyx_t_2); __Pyx_INCREF(__pyx_t_4); __pyx_t_2++; if (unlikely((0 < 0))) __PYX_ERR(0, 44, __pyx_L1_error)
         #else
-        __pyx_t_4 = __Pyx_PySequence_ITEM(__pyx_t_1, __pyx_t_2); __pyx_t_2++; if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 41, __pyx_L1_error)
+        __pyx_t_4 = __Pyx_PySequence_ITEM(__pyx_t_1, __pyx_t_2); __pyx_t_2++; if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 44, __pyx_L1_error)
         __Pyx_GOTREF(__pyx_t_4);
         #endif
       }
@@ -5077,7 +5217,7 @@ static Trajectory __pyx_f_4ppme_np_to_trajectory(PyArrayObject *__pyx_v_arr) {
         PyObject* exc_type = PyErr_Occurred();
         if (exc_type) {
           if (likely(__Pyx_PyErr_GivenExceptionMatches(exc_type, PyExc_StopIteration))) PyErr_Clear();
-          else __PYX_ERR(0, 41, __pyx_L1_error)
+          else __PYX_ERR(0, 44, __pyx_L1_error)
         }
         break;
       }
@@ -5086,23 +5226,23 @@ static Trajectory __pyx_f_4ppme_np_to_trajectory(PyArrayObject *__pyx_v_arr) {
     __Pyx_XDECREF_SET(__pyx_v_coord, __pyx_t_4);
     __pyx_t_4 = 0;
 
-    /* "ppme.pyx":42
+    /* "ppme.pyx":45
  * 
  *     for coord in arr:
  *         traj.push_back(np_to_coordinate(coord)) # Push the converted array into the Trajectory             # <<<<<<<<<<<<<<
  *     return traj
  * 
  */
-    if (!(likely(((__pyx_v_coord) == Py_None) || likely(__Pyx_TypeTest(__pyx_v_coord, __pyx_ptype_5numpy_ndarray))))) __PYX_ERR(0, 42, __pyx_L1_error)
-    __pyx_t_5 = __pyx_f_4ppme_np_to_coordinate(((PyArrayObject *)__pyx_v_coord)); if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 42, __pyx_L1_error)
+    if (!(likely(((__pyx_v_coord) == Py_None) || likely(__Pyx_TypeTest(__pyx_v_coord, __pyx_ptype_5numpy_ndarray))))) __PYX_ERR(0, 45, __pyx_L1_error)
+    __pyx_t_5 = __pyx_f_4ppme_np_to_coordinate(((PyArrayObject *)__pyx_v_coord)); if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 45, __pyx_L1_error)
     try {
       __pyx_v_traj.push_back(__pyx_t_5);
     } catch(...) {
       __Pyx_CppExn2PyErr();
-      __PYX_ERR(0, 42, __pyx_L1_error)
+      __PYX_ERR(0, 45, __pyx_L1_error)
     }
 
-    /* "ppme.pyx":41
+    /* "ppme.pyx":44
  *     cdef Trajectory traj
  * 
  *     for coord in arr:             # <<<<<<<<<<<<<<
@@ -5112,7 +5252,7 @@ static Trajectory __pyx_f_4ppme_np_to_trajectory(PyArrayObject *__pyx_v_arr) {
   }
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
 
-  /* "ppme.pyx":43
+  /* "ppme.pyx":46
  *     for coord in arr:
  *         traj.push_back(np_to_coordinate(coord)) # Push the converted array into the Trajectory
  *     return traj             # <<<<<<<<<<<<<<
@@ -5122,10 +5262,10 @@ static Trajectory __pyx_f_4ppme_np_to_trajectory(PyArrayObject *__pyx_v_arr) {
   __pyx_r = __pyx_v_traj;
   goto __pyx_L0;
 
-  /* "ppme.pyx":38
+  /* "ppme.pyx":41
  * 
  * # Convert NumPy arrays to C++ Trajectory
- * cdef Trajectory np_to_trajectory(cnp.ndarray[cnp.float64_t, ndim=2] arr):             # <<<<<<<<<<<<<<
+ * cdef Trajectory np_to_trajectory(cnp.ndarray[cnp.npy_float64, ndim=2] arr):             # <<<<<<<<<<<<<<
  *     cdef Trajectory traj
  * 
  */
@@ -5151,7 +5291,7 @@ static Trajectory __pyx_f_4ppme_np_to_trajectory(PyArrayObject *__pyx_v_arr) {
   return __pyx_r;
 }
 
-/* "ppme.pyx":46
+/* "ppme.pyx":49
  * 
  * # Convert Python list of NumPy arrays to C++ vector of Trajectories
  * cdef vector[Trajectory] list_to_vector(list py_list):             # <<<<<<<<<<<<<<
@@ -5177,7 +5317,7 @@ static std::vector<Trajectory>  __pyx_f_4ppme_list_to_vector(PyObject *__pyx_v_p
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("list_to_vector", 1);
 
-  /* "ppme.pyx":49
+  /* "ppme.pyx":52
  *     cdef vector[Trajectory] trajectories
  * 
  *     for arr in py_list:             # <<<<<<<<<<<<<<
@@ -5186,7 +5326,7 @@ static std::vector<Trajectory>  __pyx_f_4ppme_list_to_vector(PyObject *__pyx_v_p
  */
   if (unlikely(__pyx_v_py_list == Py_None)) {
     PyErr_SetString(PyExc_TypeError, "'NoneType' object is not iterable");
-    __PYX_ERR(0, 49, __pyx_L1_error)
+    __PYX_ERR(0, 52, __pyx_L1_error)
   }
   __pyx_t_1 = __pyx_v_py_list; __Pyx_INCREF(__pyx_t_1);
   __pyx_t_2 = 0;
@@ -5194,20 +5334,20 @@ static std::vector<Trajectory>  __pyx_f_4ppme_list_to_vector(PyObject *__pyx_v_p
     {
       Py_ssize_t __pyx_temp = __Pyx_PyList_GET_SIZE(__pyx_t_1);
       #if !CYTHON_ASSUME_SAFE_MACROS
-      if (unlikely((__pyx_temp < 0))) __PYX_ERR(0, 49, __pyx_L1_error)
+      if (unlikely((__pyx_temp < 0))) __PYX_ERR(0, 52, __pyx_L1_error)
       #endif
       if (__pyx_t_2 >= __pyx_temp) break;
     }
     #if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
-    __pyx_t_3 = PyList_GET_ITEM(__pyx_t_1, __pyx_t_2); __Pyx_INCREF(__pyx_t_3); __pyx_t_2++; if (unlikely((0 < 0))) __PYX_ERR(0, 49, __pyx_L1_error)
+    __pyx_t_3 = PyList_GET_ITEM(__pyx_t_1, __pyx_t_2); __Pyx_INCREF(__pyx_t_3); __pyx_t_2++; if (unlikely((0 < 0))) __PYX_ERR(0, 52, __pyx_L1_error)
     #else
-    __pyx_t_3 = __Pyx_PySequence_ITEM(__pyx_t_1, __pyx_t_2); __pyx_t_2++; if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 49, __pyx_L1_error)
+    __pyx_t_3 = __Pyx_PySequence_ITEM(__pyx_t_1, __pyx_t_2); __pyx_t_2++; if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 52, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_3);
     #endif
     __Pyx_XDECREF_SET(__pyx_v_arr, __pyx_t_3);
     __pyx_t_3 = 0;
 
-    /* "ppme.pyx":50
+    /* "ppme.pyx":53
  * 
  *     for arr in py_list:
  *         if isinstance(arr, cnp.ndarray):  # Check if the element is a NumPy array             # <<<<<<<<<<<<<<
@@ -5217,23 +5357,23 @@ static std::vector<Trajectory>  __pyx_f_4ppme_list_to_vector(PyObject *__pyx_v_p
     __pyx_t_4 = __Pyx_TypeCheck(__pyx_v_arr, __pyx_ptype_5numpy_ndarray); 
     if (likely(__pyx_t_4)) {
 
-      /* "ppme.pyx":52
+      /* "ppme.pyx":55
  *         if isinstance(arr, cnp.ndarray):  # Check if the element is a NumPy array
  *             # Directly convert each NumPy array into a Trajectory
  *             trajectories.push_back(np_to_trajectory(arr))             # <<<<<<<<<<<<<<
  *         else:
  *             # Handle the case where the element is not a NumPy array
  */
-      if (!(likely(((__pyx_v_arr) == Py_None) || likely(__Pyx_TypeTest(__pyx_v_arr, __pyx_ptype_5numpy_ndarray))))) __PYX_ERR(0, 52, __pyx_L1_error)
-      __pyx_t_5 = __pyx_f_4ppme_np_to_trajectory(((PyArrayObject *)__pyx_v_arr)); if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 52, __pyx_L1_error)
+      if (!(likely(((__pyx_v_arr) == Py_None) || likely(__Pyx_TypeTest(__pyx_v_arr, __pyx_ptype_5numpy_ndarray))))) __PYX_ERR(0, 55, __pyx_L1_error)
+      __pyx_t_5 = __pyx_f_4ppme_np_to_trajectory(((PyArrayObject *)__pyx_v_arr)); if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 55, __pyx_L1_error)
       try {
         __pyx_v_trajectories.push_back(__pyx_t_5);
       } catch(...) {
         __Pyx_CppExn2PyErr();
-        __PYX_ERR(0, 52, __pyx_L1_error)
+        __PYX_ERR(0, 55, __pyx_L1_error)
       }
 
-      /* "ppme.pyx":50
+      /* "ppme.pyx":53
  * 
  *     for arr in py_list:
  *         if isinstance(arr, cnp.ndarray):  # Check if the element is a NumPy array             # <<<<<<<<<<<<<<
@@ -5243,7 +5383,7 @@ static std::vector<Trajectory>  __pyx_f_4ppme_list_to_vector(PyObject *__pyx_v_p
       goto __pyx_L5;
     }
 
-    /* "ppme.pyx":55
+    /* "ppme.pyx":58
  *         else:
  *             # Handle the case where the element is not a NumPy array
  *             raise TypeError(f"Expected NumPy array, got {type(arr)} instead.")             # <<<<<<<<<<<<<<
@@ -5251,7 +5391,7 @@ static std::vector<Trajectory>  __pyx_f_4ppme_list_to_vector(PyObject *__pyx_v_p
  *     return trajectories
  */
     /*else*/ {
-      __pyx_t_3 = PyTuple_New(3); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 55, __pyx_L1_error)
+      __pyx_t_3 = PyTuple_New(3); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 58, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_3);
       __pyx_t_6 = 0;
       __pyx_t_7 = 127;
@@ -5259,7 +5399,7 @@ static std::vector<Trajectory>  __pyx_f_4ppme_list_to_vector(PyObject *__pyx_v_p
       __pyx_t_6 += 26;
       __Pyx_GIVEREF(__pyx_kp_u_Expected_NumPy_array_got);
       PyTuple_SET_ITEM(__pyx_t_3, 0, __pyx_kp_u_Expected_NumPy_array_got);
-      __pyx_t_8 = __Pyx_PyObject_FormatSimple(((PyObject *)Py_TYPE(__pyx_v_arr)), __pyx_empty_unicode); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 55, __pyx_L1_error)
+      __pyx_t_8 = __Pyx_PyObject_FormatSimple(((PyObject *)Py_TYPE(__pyx_v_arr)), __pyx_empty_unicode); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 58, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_8);
       __pyx_t_7 = (__Pyx_PyUnicode_MAX_CHAR_VALUE(__pyx_t_8) > __pyx_t_7) ? __Pyx_PyUnicode_MAX_CHAR_VALUE(__pyx_t_8) : __pyx_t_7;
       __pyx_t_6 += __Pyx_PyUnicode_GET_LENGTH(__pyx_t_8);
@@ -5270,19 +5410,19 @@ static std::vector<Trajectory>  __pyx_f_4ppme_list_to_vector(PyObject *__pyx_v_p
       __pyx_t_6 += 9;
       __Pyx_GIVEREF(__pyx_kp_u_instead);
       PyTuple_SET_ITEM(__pyx_t_3, 2, __pyx_kp_u_instead);
-      __pyx_t_8 = __Pyx_PyUnicode_Join(__pyx_t_3, 3, __pyx_t_6, __pyx_t_7); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 55, __pyx_L1_error)
+      __pyx_t_8 = __Pyx_PyUnicode_Join(__pyx_t_3, 3, __pyx_t_6, __pyx_t_7); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 58, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_8);
       __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
-      __pyx_t_3 = __Pyx_PyObject_CallOneArg(__pyx_builtin_TypeError, __pyx_t_8); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 55, __pyx_L1_error)
+      __pyx_t_3 = __Pyx_PyObject_CallOneArg(__pyx_builtin_TypeError, __pyx_t_8); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 58, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_3);
       __Pyx_DECREF(__pyx_t_8); __pyx_t_8 = 0;
       __Pyx_Raise(__pyx_t_3, 0, 0, 0);
       __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
-      __PYX_ERR(0, 55, __pyx_L1_error)
+      __PYX_ERR(0, 58, __pyx_L1_error)
     }
     __pyx_L5:;
 
-    /* "ppme.pyx":49
+    /* "ppme.pyx":52
  *     cdef vector[Trajectory] trajectories
  * 
  *     for arr in py_list:             # <<<<<<<<<<<<<<
@@ -5292,17 +5432,17 @@ static std::vector<Trajectory>  __pyx_f_4ppme_list_to_vector(PyObject *__pyx_v_p
   }
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
 
-  /* "ppme.pyx":57
+  /* "ppme.pyx":60
  *             raise TypeError(f"Expected NumPy array, got {type(arr)} instead.")
  * 
  *     return trajectories             # <<<<<<<<<<<<<<
  * 
- * 
+ * # Convert C++ StartMap back to Python dictionary
  */
   __pyx_r = __pyx_v_trajectories;
   goto __pyx_L0;
 
-  /* "ppme.pyx":46
+  /* "ppme.pyx":49
  * 
  * # Convert Python list of NumPy arrays to C++ vector of Trajectories
  * cdef vector[Trajectory] list_to_vector(list py_list):             # <<<<<<<<<<<<<<
@@ -5323,57 +5463,209 @@ static std::vector<Trajectory>  __pyx_f_4ppme_list_to_vector(PyObject *__pyx_v_p
   return __pyx_r;
 }
 
-/* "ppme.pyx":61
+/* "ppme.pyx":63
  * 
- * # Convert C++ ResultMap back to Python dictionary
- * cdef result_map_to_dict(ResultMap result):             # <<<<<<<<<<<<<<
+ * # Convert C++ StartMap back to Python dictionary
+ * cdef dict start_map_to_dict(StartMap start_map):             # <<<<<<<<<<<<<<
+ *     py_start_map = {}
+ *     cdef Coordinate key
+ */
+
+static PyObject *__pyx_f_4ppme_start_map_to_dict(StartMap __pyx_v_start_map) {
+  PyObject *__pyx_v_py_start_map = NULL;
+  Coordinate __pyx_v_key;
+  double __pyx_v_value;
+  std::pair<Coordinate,double>  __pyx_v_pair;
+  PyObject *__pyx_v_hashable_key = NULL;
+  PyObject *__pyx_r = NULL;
+  __Pyx_RefNannyDeclarations
+  PyObject *__pyx_t_1 = NULL;
+  std::unordered_map<Coordinate,double> ::iterator __pyx_t_2;
+  std::pair<Coordinate,double>  __pyx_t_3;
+  Coordinate __pyx_t_4;
+  double __pyx_t_5;
+  PyObject *__pyx_t_6 = NULL;
+  PyObject *__pyx_t_7 = NULL;
+  int __pyx_lineno = 0;
+  const char *__pyx_filename = NULL;
+  int __pyx_clineno = 0;
+  __Pyx_RefNannySetupContext("start_map_to_dict", 1);
+
+  /* "ppme.pyx":64
+ * # Convert C++ StartMap back to Python dictionary
+ * cdef dict start_map_to_dict(StartMap start_map):
+ *     py_start_map = {}             # <<<<<<<<<<<<<<
+ *     cdef Coordinate key
+ *     cdef double value
+ */
+  __pyx_t_1 = __Pyx_PyDict_NewPresized(0); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 64, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_1);
+  __pyx_v_py_start_map = ((PyObject*)__pyx_t_1);
+  __pyx_t_1 = 0;
+
+  /* "ppme.pyx":70
+ * 
+ *     # Iterate over the StartMap
+ *     for pair in start_map:             # <<<<<<<<<<<<<<
+ *         key = pair.first
+ *         value = pair.second
+ */
+  __pyx_t_2 = __pyx_v_start_map.begin();
+  for (;;) {
+    if (!(__pyx_t_2 != __pyx_v_start_map.end())) break;
+    __pyx_t_3 = *__pyx_t_2;
+    ++__pyx_t_2;
+    __pyx_v_pair = __PYX_STD_MOVE_IF_SUPPORTED(__pyx_t_3);
+
+    /* "ppme.pyx":71
+ *     # Iterate over the StartMap
+ *     for pair in start_map:
+ *         key = pair.first             # <<<<<<<<<<<<<<
+ *         value = pair.second
+ * 
+ */
+    __pyx_t_4 = __pyx_v_pair.first;
+    __pyx_v_key = __PYX_STD_MOVE_IF_SUPPORTED(__pyx_t_4);
+
+    /* "ppme.pyx":72
+ *     for pair in start_map:
+ *         key = pair.first
+ *         value = pair.second             # <<<<<<<<<<<<<<
+ * 
+ *         # Convert the key (Trajectory) to a hashable Python tuple
+ */
+    __pyx_t_5 = __pyx_v_pair.second;
+    __pyx_v_value = __pyx_t_5;
+
+    /* "ppme.pyx":75
+ * 
+ *         # Convert the key (Trajectory) to a hashable Python tuple
+ *         hashable_key = tuple((key.data[0], key.data[1]))             # <<<<<<<<<<<<<<
+ *         py_start_map[hashable_key] = value
+ * 
+ */
+    __pyx_t_1 = PyFloat_FromDouble((__pyx_v_key.data[0])); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 75, __pyx_L1_error)
+    __Pyx_GOTREF(__pyx_t_1);
+    __pyx_t_6 = PyFloat_FromDouble((__pyx_v_key.data[1])); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 75, __pyx_L1_error)
+    __Pyx_GOTREF(__pyx_t_6);
+    __pyx_t_7 = PyTuple_New(2); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 75, __pyx_L1_error)
+    __Pyx_GOTREF(__pyx_t_7);
+    __Pyx_GIVEREF(__pyx_t_1);
+    if (__Pyx_PyTuple_SET_ITEM(__pyx_t_7, 0, __pyx_t_1)) __PYX_ERR(0, 75, __pyx_L1_error);
+    __Pyx_GIVEREF(__pyx_t_6);
+    if (__Pyx_PyTuple_SET_ITEM(__pyx_t_7, 1, __pyx_t_6)) __PYX_ERR(0, 75, __pyx_L1_error);
+    __pyx_t_1 = 0;
+    __pyx_t_6 = 0;
+    __Pyx_XDECREF_SET(__pyx_v_hashable_key, ((PyObject*)__pyx_t_7));
+    __pyx_t_7 = 0;
+
+    /* "ppme.pyx":76
+ *         # Convert the key (Trajectory) to a hashable Python tuple
+ *         hashable_key = tuple((key.data[0], key.data[1]))
+ *         py_start_map[hashable_key] = value             # <<<<<<<<<<<<<<
+ * 
+ *     return py_start_map
+ */
+    __pyx_t_7 = PyFloat_FromDouble(__pyx_v_value); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 76, __pyx_L1_error)
+    __Pyx_GOTREF(__pyx_t_7);
+    if (unlikely((PyDict_SetItem(__pyx_v_py_start_map, __pyx_v_hashable_key, __pyx_t_7) < 0))) __PYX_ERR(0, 76, __pyx_L1_error)
+    __Pyx_DECREF(__pyx_t_7); __pyx_t_7 = 0;
+
+    /* "ppme.pyx":70
+ * 
+ *     # Iterate over the StartMap
+ *     for pair in start_map:             # <<<<<<<<<<<<<<
+ *         key = pair.first
+ *         value = pair.second
+ */
+  }
+
+  /* "ppme.pyx":78
+ *         py_start_map[hashable_key] = value
+ * 
+ *     return py_start_map             # <<<<<<<<<<<<<<
+ * 
+ * # Convert C++ PrefixMap back to Python dictionary
+ */
+  __Pyx_XDECREF(__pyx_r);
+  __Pyx_INCREF(__pyx_v_py_start_map);
+  __pyx_r = __pyx_v_py_start_map;
+  goto __pyx_L0;
+
+  /* "ppme.pyx":63
+ * 
+ * # Convert C++ StartMap back to Python dictionary
+ * cdef dict start_map_to_dict(StartMap start_map):             # <<<<<<<<<<<<<<
+ *     py_start_map = {}
+ *     cdef Coordinate key
+ */
+
+  /* function exit code */
+  __pyx_L1_error:;
+  __Pyx_XDECREF(__pyx_t_1);
+  __Pyx_XDECREF(__pyx_t_6);
+  __Pyx_XDECREF(__pyx_t_7);
+  __Pyx_AddTraceback("ppme.start_map_to_dict", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __pyx_r = 0;
+  __pyx_L0:;
+  __Pyx_XDECREF(__pyx_v_py_start_map);
+  __Pyx_XDECREF(__pyx_v_hashable_key);
+  __Pyx_XGIVEREF(__pyx_r);
+  __Pyx_RefNannyFinishContext();
+  return __pyx_r;
+}
+
+/* "ppme.pyx":81
+ * 
+ * # Convert C++ PrefixMap back to Python dictionary
+ * cdef result_map_to_dict(PrefixMap result):             # <<<<<<<<<<<<<<
  *     py_result = {}
  *     cdef Coordinate key, inner_key
  */
 
-static PyObject *__pyx_f_4ppme_result_map_to_dict(ResultMap __pyx_v_result) {
+static PyObject *__pyx_f_4ppme_result_map_to_dict(PrefixMap __pyx_v_result) {
   PyObject *__pyx_v_py_result = NULL;
   Coordinate __pyx_v_key;
   Coordinate __pyx_v_inner_key;
-  std::unordered_map<Coordinate,int>  __pyx_v_inner_map;
-  std::pair<Coordinate,std::unordered_map<Coordinate,int> >  __pyx_v_outer_pair;
-  std::pair<Coordinate,int>  __pyx_v_inner_pair;
+  std::unordered_map<Coordinate,double>  __pyx_v_inner_map;
+  std::pair<Coordinate,std::unordered_map<Coordinate,double> >  __pyx_v_outer_pair;
+  std::pair<Coordinate,double>  __pyx_v_inner_pair;
   PyObject *__pyx_v_hashable_key = NULL;
   PyObject *__pyx_v_py_inner_map = NULL;
-  int __pyx_v_value;
+  double __pyx_v_value;
   PyObject *__pyx_v_hashable_inner_key = NULL;
   PyObject *__pyx_r = NULL;
   __Pyx_RefNannyDeclarations
   PyObject *__pyx_t_1 = NULL;
-  std::unordered_map<Coordinate,std::unordered_map<Coordinate,int> > ::iterator __pyx_t_2;
-  std::pair<Coordinate,std::unordered_map<Coordinate,int> >  __pyx_t_3;
+  std::unordered_map<Coordinate,std::unordered_map<Coordinate,double> > ::iterator __pyx_t_2;
+  std::pair<Coordinate,std::unordered_map<Coordinate,double> >  __pyx_t_3;
   Coordinate __pyx_t_4;
-  std::unordered_map<Coordinate,int>  __pyx_t_5;
+  std::unordered_map<Coordinate,double>  __pyx_t_5;
   PyObject *__pyx_t_6 = NULL;
   PyObject *__pyx_t_7 = NULL;
-  std::unordered_map<Coordinate,int> ::iterator __pyx_t_8;
-  std::pair<Coordinate,int>  __pyx_t_9;
-  int __pyx_t_10;
+  std::unordered_map<Coordinate,double> ::iterator __pyx_t_8;
+  std::pair<Coordinate,double>  __pyx_t_9;
+  double __pyx_t_10;
   int __pyx_lineno = 0;
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("result_map_to_dict", 1);
 
-  /* "ppme.pyx":62
- * # Convert C++ ResultMap back to Python dictionary
- * cdef result_map_to_dict(ResultMap result):
+  /* "ppme.pyx":82
+ * # Convert C++ PrefixMap back to Python dictionary
+ * cdef result_map_to_dict(PrefixMap result):
  *     py_result = {}             # <<<<<<<<<<<<<<
  *     cdef Coordinate key, inner_key
- *     cdef unordered_map[Coordinate, int] inner_map
+ *     cdef unordered_map[Coordinate, double] inner_map
  */
-  __pyx_t_1 = __Pyx_PyDict_NewPresized(0); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 62, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyDict_NewPresized(0); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 82, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_v_py_result = ((PyObject*)__pyx_t_1);
   __pyx_t_1 = 0;
 
-  /* "ppme.pyx":69
+  /* "ppme.pyx":89
  * 
- *     # Iterate over the ResultMap
+ *     # Iterate over the PrefixMap
  *     for outer_pair in result:             # <<<<<<<<<<<<<<
  *         key = outer_pair.first
  *         inner_map = outer_pair.second
@@ -5385,8 +5677,8 @@ static PyObject *__pyx_f_4ppme_result_map_to_dict(ResultMap __pyx_v_result) {
     ++__pyx_t_2;
     __pyx_v_outer_pair = __PYX_STD_MOVE_IF_SUPPORTED(__pyx_t_3);
 
-    /* "ppme.pyx":70
- *     # Iterate over the ResultMap
+    /* "ppme.pyx":90
+ *     # Iterate over the PrefixMap
  *     for outer_pair in result:
  *         key = outer_pair.first             # <<<<<<<<<<<<<<
  *         inner_map = outer_pair.second
@@ -5395,7 +5687,7 @@ static PyObject *__pyx_f_4ppme_result_map_to_dict(ResultMap __pyx_v_result) {
     __pyx_t_4 = __pyx_v_outer_pair.first;
     __pyx_v_key = __PYX_STD_MOVE_IF_SUPPORTED(__pyx_t_4);
 
-    /* "ppme.pyx":71
+    /* "ppme.pyx":91
  *     for outer_pair in result:
  *         key = outer_pair.first
  *         inner_map = outer_pair.second             # <<<<<<<<<<<<<<
@@ -5405,41 +5697,41 @@ static PyObject *__pyx_f_4ppme_result_map_to_dict(ResultMap __pyx_v_result) {
     __pyx_t_5 = __pyx_v_outer_pair.second;
     __pyx_v_inner_map = __PYX_STD_MOVE_IF_SUPPORTED(__pyx_t_5);
 
-    /* "ppme.pyx":74
+    /* "ppme.pyx":94
  * 
  *         # Convert the outer key (Trajectory) to a hashable Python tuple
  *         hashable_key = tuple((key.data[0], key.data[1]))             # <<<<<<<<<<<<<<
  * 
  *         py_inner_map = {}
  */
-    __pyx_t_1 = PyFloat_FromDouble((__pyx_v_key.data[0])); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 74, __pyx_L1_error)
+    __pyx_t_1 = PyFloat_FromDouble((__pyx_v_key.data[0])); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 94, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_1);
-    __pyx_t_6 = PyFloat_FromDouble((__pyx_v_key.data[1])); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 74, __pyx_L1_error)
+    __pyx_t_6 = PyFloat_FromDouble((__pyx_v_key.data[1])); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 94, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_6);
-    __pyx_t_7 = PyTuple_New(2); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 74, __pyx_L1_error)
+    __pyx_t_7 = PyTuple_New(2); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 94, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_7);
     __Pyx_GIVEREF(__pyx_t_1);
-    if (__Pyx_PyTuple_SET_ITEM(__pyx_t_7, 0, __pyx_t_1)) __PYX_ERR(0, 74, __pyx_L1_error);
+    if (__Pyx_PyTuple_SET_ITEM(__pyx_t_7, 0, __pyx_t_1)) __PYX_ERR(0, 94, __pyx_L1_error);
     __Pyx_GIVEREF(__pyx_t_6);
-    if (__Pyx_PyTuple_SET_ITEM(__pyx_t_7, 1, __pyx_t_6)) __PYX_ERR(0, 74, __pyx_L1_error);
+    if (__Pyx_PyTuple_SET_ITEM(__pyx_t_7, 1, __pyx_t_6)) __PYX_ERR(0, 94, __pyx_L1_error);
     __pyx_t_1 = 0;
     __pyx_t_6 = 0;
     __Pyx_XDECREF_SET(__pyx_v_hashable_key, ((PyObject*)__pyx_t_7));
     __pyx_t_7 = 0;
 
-    /* "ppme.pyx":76
+    /* "ppme.pyx":96
  *         hashable_key = tuple((key.data[0], key.data[1]))
  * 
  *         py_inner_map = {}             # <<<<<<<<<<<<<<
  *         # Iterate over the inner map
  *         for inner_pair in inner_map:
  */
-    __pyx_t_7 = __Pyx_PyDict_NewPresized(0); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 76, __pyx_L1_error)
+    __pyx_t_7 = __Pyx_PyDict_NewPresized(0); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 96, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_7);
     __Pyx_XDECREF_SET(__pyx_v_py_inner_map, ((PyObject*)__pyx_t_7));
     __pyx_t_7 = 0;
 
-    /* "ppme.pyx":78
+    /* "ppme.pyx":98
  *         py_inner_map = {}
  *         # Iterate over the inner map
  *         for inner_pair in inner_map:             # <<<<<<<<<<<<<<
@@ -5453,7 +5745,7 @@ static PyObject *__pyx_f_4ppme_result_map_to_dict(ResultMap __pyx_v_result) {
       ++__pyx_t_8;
       __pyx_v_inner_pair = __PYX_STD_MOVE_IF_SUPPORTED(__pyx_t_9);
 
-      /* "ppme.pyx":79
+      /* "ppme.pyx":99
  *         # Iterate over the inner map
  *         for inner_pair in inner_map:
  *             inner_key = inner_pair.first             # <<<<<<<<<<<<<<
@@ -5463,7 +5755,7 @@ static PyObject *__pyx_f_4ppme_result_map_to_dict(ResultMap __pyx_v_result) {
       __pyx_t_4 = __pyx_v_inner_pair.first;
       __pyx_v_inner_key = __PYX_STD_MOVE_IF_SUPPORTED(__pyx_t_4);
 
-      /* "ppme.pyx":80
+      /* "ppme.pyx":100
  *         for inner_pair in inner_map:
  *             inner_key = inner_pair.first
  *             value = inner_pair.second             # <<<<<<<<<<<<<<
@@ -5473,41 +5765,41 @@ static PyObject *__pyx_f_4ppme_result_map_to_dict(ResultMap __pyx_v_result) {
       __pyx_t_10 = __pyx_v_inner_pair.second;
       __pyx_v_value = __pyx_t_10;
 
-      /* "ppme.pyx":83
+      /* "ppme.pyx":103
  * 
  *             # Convert the inner key (Trajectory) to a hashable Python tuple
  *             hashable_inner_key = tuple((inner_key.data[0], inner_key.data[1]))             # <<<<<<<<<<<<<<
  *             py_inner_map[hashable_inner_key] = value
  * 
  */
-      __pyx_t_7 = PyFloat_FromDouble((__pyx_v_inner_key.data[0])); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 83, __pyx_L1_error)
+      __pyx_t_7 = PyFloat_FromDouble((__pyx_v_inner_key.data[0])); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 103, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_7);
-      __pyx_t_6 = PyFloat_FromDouble((__pyx_v_inner_key.data[1])); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 83, __pyx_L1_error)
+      __pyx_t_6 = PyFloat_FromDouble((__pyx_v_inner_key.data[1])); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 103, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_6);
-      __pyx_t_1 = PyTuple_New(2); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 83, __pyx_L1_error)
+      __pyx_t_1 = PyTuple_New(2); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 103, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_1);
       __Pyx_GIVEREF(__pyx_t_7);
-      if (__Pyx_PyTuple_SET_ITEM(__pyx_t_1, 0, __pyx_t_7)) __PYX_ERR(0, 83, __pyx_L1_error);
+      if (__Pyx_PyTuple_SET_ITEM(__pyx_t_1, 0, __pyx_t_7)) __PYX_ERR(0, 103, __pyx_L1_error);
       __Pyx_GIVEREF(__pyx_t_6);
-      if (__Pyx_PyTuple_SET_ITEM(__pyx_t_1, 1, __pyx_t_6)) __PYX_ERR(0, 83, __pyx_L1_error);
+      if (__Pyx_PyTuple_SET_ITEM(__pyx_t_1, 1, __pyx_t_6)) __PYX_ERR(0, 103, __pyx_L1_error);
       __pyx_t_7 = 0;
       __pyx_t_6 = 0;
       __Pyx_XDECREF_SET(__pyx_v_hashable_inner_key, ((PyObject*)__pyx_t_1));
       __pyx_t_1 = 0;
 
-      /* "ppme.pyx":84
+      /* "ppme.pyx":104
  *             # Convert the inner key (Trajectory) to a hashable Python tuple
  *             hashable_inner_key = tuple((inner_key.data[0], inner_key.data[1]))
  *             py_inner_map[hashable_inner_key] = value             # <<<<<<<<<<<<<<
  * 
  *         py_result[hashable_key] = py_inner_map
  */
-      __pyx_t_1 = __Pyx_PyInt_From_int(__pyx_v_value); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 84, __pyx_L1_error)
+      __pyx_t_1 = PyFloat_FromDouble(__pyx_v_value); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 104, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_1);
-      if (unlikely((PyDict_SetItem(__pyx_v_py_inner_map, __pyx_v_hashable_inner_key, __pyx_t_1) < 0))) __PYX_ERR(0, 84, __pyx_L1_error)
+      if (unlikely((PyDict_SetItem(__pyx_v_py_inner_map, __pyx_v_hashable_inner_key, __pyx_t_1) < 0))) __PYX_ERR(0, 104, __pyx_L1_error)
       __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
 
-      /* "ppme.pyx":78
+      /* "ppme.pyx":98
  *         py_inner_map = {}
  *         # Iterate over the inner map
  *         for inner_pair in inner_map:             # <<<<<<<<<<<<<<
@@ -5516,25 +5808,25 @@ static PyObject *__pyx_f_4ppme_result_map_to_dict(ResultMap __pyx_v_result) {
  */
     }
 
-    /* "ppme.pyx":86
+    /* "ppme.pyx":106
  *             py_inner_map[hashable_inner_key] = value
  * 
  *         py_result[hashable_key] = py_inner_map             # <<<<<<<<<<<<<<
  * 
  *     return py_result
  */
-    if (unlikely((PyDict_SetItem(__pyx_v_py_result, __pyx_v_hashable_key, __pyx_v_py_inner_map) < 0))) __PYX_ERR(0, 86, __pyx_L1_error)
+    if (unlikely((PyDict_SetItem(__pyx_v_py_result, __pyx_v_hashable_key, __pyx_v_py_inner_map) < 0))) __PYX_ERR(0, 106, __pyx_L1_error)
 
-    /* "ppme.pyx":69
+    /* "ppme.pyx":89
  * 
- *     # Iterate over the ResultMap
+ *     # Iterate over the PrefixMap
  *     for outer_pair in result:             # <<<<<<<<<<<<<<
  *         key = outer_pair.first
  *         inner_map = outer_pair.second
  */
   }
 
-  /* "ppme.pyx":88
+  /* "ppme.pyx":108
  *         py_result[hashable_key] = py_inner_map
  * 
  *     return py_result             # <<<<<<<<<<<<<<
@@ -5546,10 +5838,10 @@ static PyObject *__pyx_f_4ppme_result_map_to_dict(ResultMap __pyx_v_result) {
   __pyx_r = __pyx_v_py_result;
   goto __pyx_L0;
 
-  /* "ppme.pyx":61
+  /* "ppme.pyx":81
  * 
- * # Convert C++ ResultMap back to Python dictionary
- * cdef result_map_to_dict(ResultMap result):             # <<<<<<<<<<<<<<
+ * # Convert C++ PrefixMap back to Python dictionary
+ * cdef result_map_to_dict(PrefixMap result):             # <<<<<<<<<<<<<<
  *     py_result = {}
  *     cdef Coordinate key, inner_key
  */
@@ -5571,12 +5863,12 @@ static PyObject *__pyx_f_4ppme_result_map_to_dict(ResultMap __pyx_v_result) {
   return __pyx_r;
 }
 
-/* "ppme.pyx":91
+/* "ppme.pyx":111
  * 
  * # Main function to process prefixes
  * def process_prefix_py(list py_trajectories):             # <<<<<<<<<<<<<<
  *     print("Processing prefixes...")
- * 
+ *     start = time.time()
  */
 
 /* Python wrapper */
@@ -5632,12 +5924,12 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
           (void)__Pyx_Arg_NewRef_FASTCALL(values[0]);
           kw_args--;
         }
-        else if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 91, __pyx_L3_error)
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 111, __pyx_L3_error)
         else goto __pyx_L5_argtuple_error;
       }
       if (unlikely(kw_args > 0)) {
         const Py_ssize_t kwd_pos_args = __pyx_nargs;
-        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values + 0, kwd_pos_args, "process_prefix_py") < 0)) __PYX_ERR(0, 91, __pyx_L3_error)
+        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values + 0, kwd_pos_args, "process_prefix_py") < 0)) __PYX_ERR(0, 111, __pyx_L3_error)
       }
     } else if (unlikely(__pyx_nargs != 1)) {
       goto __pyx_L5_argtuple_error;
@@ -5648,7 +5940,7 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
   }
   goto __pyx_L6_skip;
   __pyx_L5_argtuple_error:;
-  __Pyx_RaiseArgtupleInvalid("process_prefix_py", 1, 1, 1, __pyx_nargs); __PYX_ERR(0, 91, __pyx_L3_error)
+  __Pyx_RaiseArgtupleInvalid("process_prefix_py", 1, 1, 1, __pyx_nargs); __PYX_ERR(0, 111, __pyx_L3_error)
   __pyx_L6_skip:;
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L3_error:;
@@ -5662,7 +5954,7 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
   __Pyx_RefNannyFinishContext();
   return NULL;
   __pyx_L4_argument_unpacking_done:;
-  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_py_trajectories), (&PyList_Type), 1, "py_trajectories", 1))) __PYX_ERR(0, 91, __pyx_L1_error)
+  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_py_trajectories), (&PyList_Type), 1, "py_trajectories", 1))) __PYX_ERR(0, 111, __pyx_L1_error)
   __pyx_r = __pyx_pf_4ppme_process_prefix_py(__pyx_self, __pyx_v_py_trajectories);
 
   /* function exit code */
@@ -5681,106 +5973,788 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
 }
 
 static PyObject *__pyx_pf_4ppme_process_prefix_py(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_py_trajectories) {
+  PyObject *__pyx_v_start = NULL;
   std::vector<Trajectory>  __pyx_v_trajectories;
-  ResultMap __pyx_v_result;
+  PyObject *__pyx_v_end = NULL;
+  StartMap __pyx_v_start_map;
+  PrefixMap __pyx_v_result;
+  PyObject *__pyx_v_py_start_map = NULL;
+  PyObject *__pyx_v_py_prefix_map = NULL;
   PyObject *__pyx_r = NULL;
   __Pyx_RefNannyDeclarations
   PyObject *__pyx_t_1 = NULL;
-  std::vector<Trajectory>  __pyx_t_2;
+  PyObject *__pyx_t_2 = NULL;
+  PyObject *__pyx_t_3 = NULL;
+  unsigned int __pyx_t_4;
+  std::vector<Trajectory>  __pyx_t_5;
+  Py_ssize_t __pyx_t_6;
+  Py_UCS4 __pyx_t_7;
   int __pyx_lineno = 0;
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("process_prefix_py", 1);
 
-  /* "ppme.pyx":92
+  /* "ppme.pyx":112
  * # Main function to process prefixes
  * def process_prefix_py(list py_trajectories):
  *     print("Processing prefixes...")             # <<<<<<<<<<<<<<
- * 
+ *     start = time.time()
  *     cdef vector[Trajectory] trajectories = list_to_vector(py_trajectories)
  */
-  __pyx_t_1 = __Pyx_PyObject_Call(__pyx_builtin_print, __pyx_tuple__3, NULL); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 92, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyObject_Call(__pyx_builtin_print, __pyx_tuple__3, NULL); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 112, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
 
-  /* "ppme.pyx":94
+  /* "ppme.pyx":113
+ * def process_prefix_py(list py_trajectories):
  *     print("Processing prefixes...")
- * 
+ *     start = time.time()             # <<<<<<<<<<<<<<
+ *     cdef vector[Trajectory] trajectories = list_to_vector(py_trajectories)
+ *     end = time.time()
+ */
+  __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_time); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 113, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_2);
+  __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_time); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 113, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_3);
+  __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
+  __pyx_t_2 = NULL;
+  __pyx_t_4 = 0;
+  #if CYTHON_UNPACK_METHODS
+  if (unlikely(PyMethod_Check(__pyx_t_3))) {
+    __pyx_t_2 = PyMethod_GET_SELF(__pyx_t_3);
+    if (likely(__pyx_t_2)) {
+      PyObject* function = PyMethod_GET_FUNCTION(__pyx_t_3);
+      __Pyx_INCREF(__pyx_t_2);
+      __Pyx_INCREF(function);
+      __Pyx_DECREF_SET(__pyx_t_3, function);
+      __pyx_t_4 = 1;
+    }
+  }
+  #endif
+  {
+    PyObject *__pyx_callargs[2] = {__pyx_t_2, NULL};
+    __pyx_t_1 = __Pyx_PyObject_FastCall(__pyx_t_3, __pyx_callargs+1-__pyx_t_4, 0+__pyx_t_4);
+    __Pyx_XDECREF(__pyx_t_2); __pyx_t_2 = 0;
+    if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 113, __pyx_L1_error)
+    __Pyx_GOTREF(__pyx_t_1);
+    __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
+  }
+  __pyx_v_start = __pyx_t_1;
+  __pyx_t_1 = 0;
+
+  /* "ppme.pyx":114
+ *     print("Processing prefixes...")
+ *     start = time.time()
  *     cdef vector[Trajectory] trajectories = list_to_vector(py_trajectories)             # <<<<<<<<<<<<<<
- * 
+ *     end = time.time()
  *     print("Done converting to C++ Trajectories")
  */
-  __pyx_t_2 = __pyx_f_4ppme_list_to_vector(__pyx_v_py_trajectories); if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 94, __pyx_L1_error)
-  __pyx_v_trajectories = __PYX_STD_MOVE_IF_SUPPORTED(__pyx_t_2);
+  __pyx_t_5 = __pyx_f_4ppme_list_to_vector(__pyx_v_py_trajectories); if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 114, __pyx_L1_error)
+  __pyx_v_trajectories = __PYX_STD_MOVE_IF_SUPPORTED(__pyx_t_5);
 
-  /* "ppme.pyx":96
+  /* "ppme.pyx":115
+ *     start = time.time()
  *     cdef vector[Trajectory] trajectories = list_to_vector(py_trajectories)
- * 
- *     print("Done converting to C++ Trajectories")             # <<<<<<<<<<<<<<
- * 
- *     cdef ResultMap result = process_prefix(trajectories)
+ *     end = time.time()             # <<<<<<<<<<<<<<
+ *     print("Done converting to C++ Trajectories")
+ *     print(f"Time taken to convert: {end - start} seconds\n")
  */
-  __pyx_t_1 = __Pyx_PyObject_Call(__pyx_builtin_print, __pyx_tuple__4, NULL); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 96, __pyx_L1_error)
+  __Pyx_GetModuleGlobalName(__pyx_t_3, __pyx_n_s_time); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 115, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_3);
+  __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_t_3, __pyx_n_s_time); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 115, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_2);
+  __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
+  __pyx_t_3 = NULL;
+  __pyx_t_4 = 0;
+  #if CYTHON_UNPACK_METHODS
+  if (unlikely(PyMethod_Check(__pyx_t_2))) {
+    __pyx_t_3 = PyMethod_GET_SELF(__pyx_t_2);
+    if (likely(__pyx_t_3)) {
+      PyObject* function = PyMethod_GET_FUNCTION(__pyx_t_2);
+      __Pyx_INCREF(__pyx_t_3);
+      __Pyx_INCREF(function);
+      __Pyx_DECREF_SET(__pyx_t_2, function);
+      __pyx_t_4 = 1;
+    }
+  }
+  #endif
+  {
+    PyObject *__pyx_callargs[2] = {__pyx_t_3, NULL};
+    __pyx_t_1 = __Pyx_PyObject_FastCall(__pyx_t_2, __pyx_callargs+1-__pyx_t_4, 0+__pyx_t_4);
+    __Pyx_XDECREF(__pyx_t_3); __pyx_t_3 = 0;
+    if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 115, __pyx_L1_error)
+    __Pyx_GOTREF(__pyx_t_1);
+    __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
+  }
+  __pyx_v_end = __pyx_t_1;
+  __pyx_t_1 = 0;
+
+  /* "ppme.pyx":116
+ *     cdef vector[Trajectory] trajectories = list_to_vector(py_trajectories)
+ *     end = time.time()
+ *     print("Done converting to C++ Trajectories")             # <<<<<<<<<<<<<<
+ *     print(f"Time taken to convert: {end - start} seconds\n")
+ * 
+ */
+  __pyx_t_1 = __Pyx_PyObject_Call(__pyx_builtin_print, __pyx_tuple__4, NULL); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 116, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
 
-  /* "ppme.pyx":98
+  /* "ppme.pyx":117
+ *     end = time.time()
  *     print("Done converting to C++ Trajectories")
+ *     print(f"Time taken to convert: {end - start} seconds\n")             # <<<<<<<<<<<<<<
  * 
- *     cdef ResultMap result = process_prefix(trajectories)             # <<<<<<<<<<<<<<
+ *     print("Begin to compute start map...")
+ */
+  __pyx_t_1 = PyTuple_New(3); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 117, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_1);
+  __pyx_t_6 = 0;
+  __pyx_t_7 = 127;
+  __Pyx_INCREF(__pyx_kp_u_Time_taken_to_convert);
+  __pyx_t_6 += 23;
+  __Pyx_GIVEREF(__pyx_kp_u_Time_taken_to_convert);
+  PyTuple_SET_ITEM(__pyx_t_1, 0, __pyx_kp_u_Time_taken_to_convert);
+  __pyx_t_2 = PyNumber_Subtract(__pyx_v_end, __pyx_v_start); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 117, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_2);
+  __pyx_t_3 = __Pyx_PyObject_FormatSimple(__pyx_t_2, __pyx_empty_unicode); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 117, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_3);
+  __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
+  __pyx_t_7 = (__Pyx_PyUnicode_MAX_CHAR_VALUE(__pyx_t_3) > __pyx_t_7) ? __Pyx_PyUnicode_MAX_CHAR_VALUE(__pyx_t_3) : __pyx_t_7;
+  __pyx_t_6 += __Pyx_PyUnicode_GET_LENGTH(__pyx_t_3);
+  __Pyx_GIVEREF(__pyx_t_3);
+  PyTuple_SET_ITEM(__pyx_t_1, 1, __pyx_t_3);
+  __pyx_t_3 = 0;
+  __Pyx_INCREF(__pyx_kp_u_seconds);
+  __pyx_t_6 += 9;
+  __Pyx_GIVEREF(__pyx_kp_u_seconds);
+  PyTuple_SET_ITEM(__pyx_t_1, 2, __pyx_kp_u_seconds);
+  __pyx_t_3 = __Pyx_PyUnicode_Join(__pyx_t_1, 3, __pyx_t_6, __pyx_t_7); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 117, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_3);
+  __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
+  __pyx_t_1 = __Pyx_PyObject_CallOneArg(__pyx_builtin_print, __pyx_t_3); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 117, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_1);
+  __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
+  __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
+
+  /* "ppme.pyx":119
+ *     print(f"Time taken to convert: {end - start} seconds\n")
  * 
+ *     print("Begin to compute start map...")             # <<<<<<<<<<<<<<
+ *     start = time.time()
+ *     cdef StartMap start_map = process_start(trajectories)
+ */
+  __pyx_t_1 = __Pyx_PyObject_Call(__pyx_builtin_print, __pyx_tuple__5, NULL); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 119, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_1);
+  __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
+
+  /* "ppme.pyx":120
+ * 
+ *     print("Begin to compute start map...")
+ *     start = time.time()             # <<<<<<<<<<<<<<
+ *     cdef StartMap start_map = process_start(trajectories)
+ *     end = time.time()
+ */
+  __Pyx_GetModuleGlobalName(__pyx_t_3, __pyx_n_s_time); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 120, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_3);
+  __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_t_3, __pyx_n_s_time); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 120, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_2);
+  __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
+  __pyx_t_3 = NULL;
+  __pyx_t_4 = 0;
+  #if CYTHON_UNPACK_METHODS
+  if (unlikely(PyMethod_Check(__pyx_t_2))) {
+    __pyx_t_3 = PyMethod_GET_SELF(__pyx_t_2);
+    if (likely(__pyx_t_3)) {
+      PyObject* function = PyMethod_GET_FUNCTION(__pyx_t_2);
+      __Pyx_INCREF(__pyx_t_3);
+      __Pyx_INCREF(function);
+      __Pyx_DECREF_SET(__pyx_t_2, function);
+      __pyx_t_4 = 1;
+    }
+  }
+  #endif
+  {
+    PyObject *__pyx_callargs[2] = {__pyx_t_3, NULL};
+    __pyx_t_1 = __Pyx_PyObject_FastCall(__pyx_t_2, __pyx_callargs+1-__pyx_t_4, 0+__pyx_t_4);
+    __Pyx_XDECREF(__pyx_t_3); __pyx_t_3 = 0;
+    if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 120, __pyx_L1_error)
+    __Pyx_GOTREF(__pyx_t_1);
+    __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
+  }
+  __Pyx_DECREF_SET(__pyx_v_start, __pyx_t_1);
+  __pyx_t_1 = 0;
+
+  /* "ppme.pyx":121
+ *     print("Begin to compute start map...")
+ *     start = time.time()
+ *     cdef StartMap start_map = process_start(trajectories)             # <<<<<<<<<<<<<<
+ *     end = time.time()
+ *     print("Finished computing start map")
+ */
+  __pyx_v_start_map = process_start(__pyx_v_trajectories);
+
+  /* "ppme.pyx":122
+ *     start = time.time()
+ *     cdef StartMap start_map = process_start(trajectories)
+ *     end = time.time()             # <<<<<<<<<<<<<<
+ *     print("Finished computing start map")
+ *     print(f"Time taken to compute start map: {end - start} seconds\n")
+ */
+  __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_time); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 122, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_2);
+  __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_time); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 122, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_3);
+  __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
+  __pyx_t_2 = NULL;
+  __pyx_t_4 = 0;
+  #if CYTHON_UNPACK_METHODS
+  if (unlikely(PyMethod_Check(__pyx_t_3))) {
+    __pyx_t_2 = PyMethod_GET_SELF(__pyx_t_3);
+    if (likely(__pyx_t_2)) {
+      PyObject* function = PyMethod_GET_FUNCTION(__pyx_t_3);
+      __Pyx_INCREF(__pyx_t_2);
+      __Pyx_INCREF(function);
+      __Pyx_DECREF_SET(__pyx_t_3, function);
+      __pyx_t_4 = 1;
+    }
+  }
+  #endif
+  {
+    PyObject *__pyx_callargs[2] = {__pyx_t_2, NULL};
+    __pyx_t_1 = __Pyx_PyObject_FastCall(__pyx_t_3, __pyx_callargs+1-__pyx_t_4, 0+__pyx_t_4);
+    __Pyx_XDECREF(__pyx_t_2); __pyx_t_2 = 0;
+    if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 122, __pyx_L1_error)
+    __Pyx_GOTREF(__pyx_t_1);
+    __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
+  }
+  __Pyx_DECREF_SET(__pyx_v_end, __pyx_t_1);
+  __pyx_t_1 = 0;
+
+  /* "ppme.pyx":123
+ *     cdef StartMap start_map = process_start(trajectories)
+ *     end = time.time()
+ *     print("Finished computing start map")             # <<<<<<<<<<<<<<
+ *     print(f"Time taken to compute start map: {end - start} seconds\n")
+ * 
+ */
+  __pyx_t_1 = __Pyx_PyObject_Call(__pyx_builtin_print, __pyx_tuple__6, NULL); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 123, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_1);
+  __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
+
+  /* "ppme.pyx":124
+ *     end = time.time()
+ *     print("Finished computing start map")
+ *     print(f"Time taken to compute start map: {end - start} seconds\n")             # <<<<<<<<<<<<<<
+ * 
+ *     start = time.time()
+ */
+  __pyx_t_1 = PyTuple_New(3); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 124, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_1);
+  __pyx_t_6 = 0;
+  __pyx_t_7 = 127;
+  __Pyx_INCREF(__pyx_kp_u_Time_taken_to_compute_start_map);
+  __pyx_t_6 += 33;
+  __Pyx_GIVEREF(__pyx_kp_u_Time_taken_to_compute_start_map);
+  PyTuple_SET_ITEM(__pyx_t_1, 0, __pyx_kp_u_Time_taken_to_compute_start_map);
+  __pyx_t_3 = PyNumber_Subtract(__pyx_v_end, __pyx_v_start); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 124, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_3);
+  __pyx_t_2 = __Pyx_PyObject_FormatSimple(__pyx_t_3, __pyx_empty_unicode); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 124, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_2);
+  __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
+  __pyx_t_7 = (__Pyx_PyUnicode_MAX_CHAR_VALUE(__pyx_t_2) > __pyx_t_7) ? __Pyx_PyUnicode_MAX_CHAR_VALUE(__pyx_t_2) : __pyx_t_7;
+  __pyx_t_6 += __Pyx_PyUnicode_GET_LENGTH(__pyx_t_2);
+  __Pyx_GIVEREF(__pyx_t_2);
+  PyTuple_SET_ITEM(__pyx_t_1, 1, __pyx_t_2);
+  __pyx_t_2 = 0;
+  __Pyx_INCREF(__pyx_kp_u_seconds);
+  __pyx_t_6 += 9;
+  __Pyx_GIVEREF(__pyx_kp_u_seconds);
+  PyTuple_SET_ITEM(__pyx_t_1, 2, __pyx_kp_u_seconds);
+  __pyx_t_2 = __Pyx_PyUnicode_Join(__pyx_t_1, 3, __pyx_t_6, __pyx_t_7); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 124, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_2);
+  __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
+  __pyx_t_1 = __Pyx_PyObject_CallOneArg(__pyx_builtin_print, __pyx_t_2); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 124, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_1);
+  __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
+  __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
+
+  /* "ppme.pyx":126
+ *     print(f"Time taken to compute start map: {end - start} seconds\n")
+ * 
+ *     start = time.time()             # <<<<<<<<<<<<<<
+ *     print("Begin processing prefixes...")
+ *     cdef PrefixMap result = process_prefix(trajectories)
+ */
+  __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_time); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 126, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_2);
+  __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_time); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 126, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_3);
+  __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
+  __pyx_t_2 = NULL;
+  __pyx_t_4 = 0;
+  #if CYTHON_UNPACK_METHODS
+  if (unlikely(PyMethod_Check(__pyx_t_3))) {
+    __pyx_t_2 = PyMethod_GET_SELF(__pyx_t_3);
+    if (likely(__pyx_t_2)) {
+      PyObject* function = PyMethod_GET_FUNCTION(__pyx_t_3);
+      __Pyx_INCREF(__pyx_t_2);
+      __Pyx_INCREF(function);
+      __Pyx_DECREF_SET(__pyx_t_3, function);
+      __pyx_t_4 = 1;
+    }
+  }
+  #endif
+  {
+    PyObject *__pyx_callargs[2] = {__pyx_t_2, NULL};
+    __pyx_t_1 = __Pyx_PyObject_FastCall(__pyx_t_3, __pyx_callargs+1-__pyx_t_4, 0+__pyx_t_4);
+    __Pyx_XDECREF(__pyx_t_2); __pyx_t_2 = 0;
+    if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 126, __pyx_L1_error)
+    __Pyx_GOTREF(__pyx_t_1);
+    __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
+  }
+  __Pyx_DECREF_SET(__pyx_v_start, __pyx_t_1);
+  __pyx_t_1 = 0;
+
+  /* "ppme.pyx":127
+ * 
+ *     start = time.time()
+ *     print("Begin processing prefixes...")             # <<<<<<<<<<<<<<
+ *     cdef PrefixMap result = process_prefix(trajectories)
+ *     end = time.time()
+ */
+  __pyx_t_1 = __Pyx_PyObject_Call(__pyx_builtin_print, __pyx_tuple__7, NULL); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 127, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_1);
+  __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
+
+  /* "ppme.pyx":128
+ *     start = time.time()
+ *     print("Begin processing prefixes...")
+ *     cdef PrefixMap result = process_prefix(trajectories)             # <<<<<<<<<<<<<<
+ *     end = time.time()
  *     print("Done processing prefixes")
  */
   __pyx_v_result = process_prefix(__pyx_v_trajectories);
 
-  /* "ppme.pyx":100
- *     cdef ResultMap result = process_prefix(trajectories)
- * 
- *     print("Done processing prefixes")             # <<<<<<<<<<<<<<
- *     print("Converting ResultMap to Python dictionary...")
- * 
- */
-  __pyx_t_1 = __Pyx_PyObject_Call(__pyx_builtin_print, __pyx_tuple__5, NULL); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 100, __pyx_L1_error)
-  __Pyx_GOTREF(__pyx_t_1);
-  __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
-
-  /* "ppme.pyx":101
- * 
+  /* "ppme.pyx":129
+ *     print("Begin processing prefixes...")
+ *     cdef PrefixMap result = process_prefix(trajectories)
+ *     end = time.time()             # <<<<<<<<<<<<<<
  *     print("Done processing prefixes")
- *     print("Converting ResultMap to Python dictionary...")             # <<<<<<<<<<<<<<
- * 
- *     return result_map_to_dict(result)
+ *     print(f"Time taken to compute: {(end - start) / 60} minutes\n")
  */
-  __pyx_t_1 = __Pyx_PyObject_Call(__pyx_builtin_print, __pyx_tuple__6, NULL); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 101, __pyx_L1_error)
+  __Pyx_GetModuleGlobalName(__pyx_t_3, __pyx_n_s_time); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 129, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_3);
+  __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_t_3, __pyx_n_s_time); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 129, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_2);
+  __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
+  __pyx_t_3 = NULL;
+  __pyx_t_4 = 0;
+  #if CYTHON_UNPACK_METHODS
+  if (unlikely(PyMethod_Check(__pyx_t_2))) {
+    __pyx_t_3 = PyMethod_GET_SELF(__pyx_t_2);
+    if (likely(__pyx_t_3)) {
+      PyObject* function = PyMethod_GET_FUNCTION(__pyx_t_2);
+      __Pyx_INCREF(__pyx_t_3);
+      __Pyx_INCREF(function);
+      __Pyx_DECREF_SET(__pyx_t_2, function);
+      __pyx_t_4 = 1;
+    }
+  }
+  #endif
+  {
+    PyObject *__pyx_callargs[2] = {__pyx_t_3, NULL};
+    __pyx_t_1 = __Pyx_PyObject_FastCall(__pyx_t_2, __pyx_callargs+1-__pyx_t_4, 0+__pyx_t_4);
+    __Pyx_XDECREF(__pyx_t_3); __pyx_t_3 = 0;
+    if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 129, __pyx_L1_error)
+    __Pyx_GOTREF(__pyx_t_1);
+    __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
+  }
+  __Pyx_DECREF_SET(__pyx_v_end, __pyx_t_1);
+  __pyx_t_1 = 0;
+
+  /* "ppme.pyx":130
+ *     cdef PrefixMap result = process_prefix(trajectories)
+ *     end = time.time()
+ *     print("Done processing prefixes")             # <<<<<<<<<<<<<<
+ *     print(f"Time taken to compute: {(end - start) / 60} minutes\n")
+ * 
+ */
+  __pyx_t_1 = __Pyx_PyObject_Call(__pyx_builtin_print, __pyx_tuple__8, NULL); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 130, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
 
-  /* "ppme.pyx":103
- *     print("Converting ResultMap to Python dictionary...")
+  /* "ppme.pyx":131
+ *     end = time.time()
+ *     print("Done processing prefixes")
+ *     print(f"Time taken to compute: {(end - start) / 60} minutes\n")             # <<<<<<<<<<<<<<
  * 
- *     return result_map_to_dict(result)             # <<<<<<<<<<<<<<
+ *     print("Converting StartMap to Python dictionary...")
+ */
+  __pyx_t_1 = PyTuple_New(3); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 131, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_1);
+  __pyx_t_6 = 0;
+  __pyx_t_7 = 127;
+  __Pyx_INCREF(__pyx_kp_u_Time_taken_to_compute);
+  __pyx_t_6 += 23;
+  __Pyx_GIVEREF(__pyx_kp_u_Time_taken_to_compute);
+  PyTuple_SET_ITEM(__pyx_t_1, 0, __pyx_kp_u_Time_taken_to_compute);
+  __pyx_t_2 = PyNumber_Subtract(__pyx_v_end, __pyx_v_start); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 131, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_2);
+  __pyx_t_3 = __Pyx_PyInt_TrueDivideObjC(__pyx_t_2, __pyx_int_60, 60, 0, 0); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 131, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_3);
+  __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
+  __pyx_t_2 = __Pyx_PyObject_FormatSimple(__pyx_t_3, __pyx_empty_unicode); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 131, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_2);
+  __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
+  __pyx_t_7 = (__Pyx_PyUnicode_MAX_CHAR_VALUE(__pyx_t_2) > __pyx_t_7) ? __Pyx_PyUnicode_MAX_CHAR_VALUE(__pyx_t_2) : __pyx_t_7;
+  __pyx_t_6 += __Pyx_PyUnicode_GET_LENGTH(__pyx_t_2);
+  __Pyx_GIVEREF(__pyx_t_2);
+  PyTuple_SET_ITEM(__pyx_t_1, 1, __pyx_t_2);
+  __pyx_t_2 = 0;
+  __Pyx_INCREF(__pyx_kp_u_minutes);
+  __pyx_t_6 += 9;
+  __Pyx_GIVEREF(__pyx_kp_u_minutes);
+  PyTuple_SET_ITEM(__pyx_t_1, 2, __pyx_kp_u_minutes);
+  __pyx_t_2 = __Pyx_PyUnicode_Join(__pyx_t_1, 3, __pyx_t_6, __pyx_t_7); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 131, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_2);
+  __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
+  __pyx_t_1 = __Pyx_PyObject_CallOneArg(__pyx_builtin_print, __pyx_t_2); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 131, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_1);
+  __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
+  __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
+
+  /* "ppme.pyx":133
+ *     print(f"Time taken to compute: {(end - start) / 60} minutes\n")
+ * 
+ *     print("Converting StartMap to Python dictionary...")             # <<<<<<<<<<<<<<
+ *     start = time.time()
+ *     py_start_map = start_map_to_dict(start_map)
+ */
+  __pyx_t_1 = __Pyx_PyObject_Call(__pyx_builtin_print, __pyx_tuple__9, NULL); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 133, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_1);
+  __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
+
+  /* "ppme.pyx":134
+ * 
+ *     print("Converting StartMap to Python dictionary...")
+ *     start = time.time()             # <<<<<<<<<<<<<<
+ *     py_start_map = start_map_to_dict(start_map)
+ *     end = time.time()
+ */
+  __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_time); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 134, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_2);
+  __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_time); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 134, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_3);
+  __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
+  __pyx_t_2 = NULL;
+  __pyx_t_4 = 0;
+  #if CYTHON_UNPACK_METHODS
+  if (unlikely(PyMethod_Check(__pyx_t_3))) {
+    __pyx_t_2 = PyMethod_GET_SELF(__pyx_t_3);
+    if (likely(__pyx_t_2)) {
+      PyObject* function = PyMethod_GET_FUNCTION(__pyx_t_3);
+      __Pyx_INCREF(__pyx_t_2);
+      __Pyx_INCREF(function);
+      __Pyx_DECREF_SET(__pyx_t_3, function);
+      __pyx_t_4 = 1;
+    }
+  }
+  #endif
+  {
+    PyObject *__pyx_callargs[2] = {__pyx_t_2, NULL};
+    __pyx_t_1 = __Pyx_PyObject_FastCall(__pyx_t_3, __pyx_callargs+1-__pyx_t_4, 0+__pyx_t_4);
+    __Pyx_XDECREF(__pyx_t_2); __pyx_t_2 = 0;
+    if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 134, __pyx_L1_error)
+    __Pyx_GOTREF(__pyx_t_1);
+    __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
+  }
+  __Pyx_DECREF_SET(__pyx_v_start, __pyx_t_1);
+  __pyx_t_1 = 0;
+
+  /* "ppme.pyx":135
+ *     print("Converting StartMap to Python dictionary...")
+ *     start = time.time()
+ *     py_start_map = start_map_to_dict(start_map)             # <<<<<<<<<<<<<<
+ *     end = time.time()
+ *     print("Done converting to Python dictionary")
+ */
+  __pyx_t_1 = __pyx_f_4ppme_start_map_to_dict(__pyx_v_start_map); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 135, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_1);
+  __pyx_v_py_start_map = ((PyObject*)__pyx_t_1);
+  __pyx_t_1 = 0;
+
+  /* "ppme.pyx":136
+ *     start = time.time()
+ *     py_start_map = start_map_to_dict(start_map)
+ *     end = time.time()             # <<<<<<<<<<<<<<
+ *     print("Done converting to Python dictionary")
+ *     print(f"Time taken to convert to Python object: {end - start} seconds\n")
+ */
+  __Pyx_GetModuleGlobalName(__pyx_t_3, __pyx_n_s_time); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 136, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_3);
+  __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_t_3, __pyx_n_s_time); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 136, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_2);
+  __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
+  __pyx_t_3 = NULL;
+  __pyx_t_4 = 0;
+  #if CYTHON_UNPACK_METHODS
+  if (unlikely(PyMethod_Check(__pyx_t_2))) {
+    __pyx_t_3 = PyMethod_GET_SELF(__pyx_t_2);
+    if (likely(__pyx_t_3)) {
+      PyObject* function = PyMethod_GET_FUNCTION(__pyx_t_2);
+      __Pyx_INCREF(__pyx_t_3);
+      __Pyx_INCREF(function);
+      __Pyx_DECREF_SET(__pyx_t_2, function);
+      __pyx_t_4 = 1;
+    }
+  }
+  #endif
+  {
+    PyObject *__pyx_callargs[2] = {__pyx_t_3, NULL};
+    __pyx_t_1 = __Pyx_PyObject_FastCall(__pyx_t_2, __pyx_callargs+1-__pyx_t_4, 0+__pyx_t_4);
+    __Pyx_XDECREF(__pyx_t_3); __pyx_t_3 = 0;
+    if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 136, __pyx_L1_error)
+    __Pyx_GOTREF(__pyx_t_1);
+    __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
+  }
+  __Pyx_DECREF_SET(__pyx_v_end, __pyx_t_1);
+  __pyx_t_1 = 0;
+
+  /* "ppme.pyx":137
+ *     py_start_map = start_map_to_dict(start_map)
+ *     end = time.time()
+ *     print("Done converting to Python dictionary")             # <<<<<<<<<<<<<<
+ *     print(f"Time taken to convert to Python object: {end - start} seconds\n")
+ * 
+ */
+  __pyx_t_1 = __Pyx_PyObject_Call(__pyx_builtin_print, __pyx_tuple__10, NULL); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 137, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_1);
+  __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
+
+  /* "ppme.pyx":138
+ *     end = time.time()
+ *     print("Done converting to Python dictionary")
+ *     print(f"Time taken to convert to Python object: {end - start} seconds\n")             # <<<<<<<<<<<<<<
+ * 
+ *     print("Converting PrefixMap to Python dictionary...")
+ */
+  __pyx_t_1 = PyTuple_New(3); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 138, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_1);
+  __pyx_t_6 = 0;
+  __pyx_t_7 = 127;
+  __Pyx_INCREF(__pyx_kp_u_Time_taken_to_convert_to_Python);
+  __pyx_t_6 += 40;
+  __Pyx_GIVEREF(__pyx_kp_u_Time_taken_to_convert_to_Python);
+  PyTuple_SET_ITEM(__pyx_t_1, 0, __pyx_kp_u_Time_taken_to_convert_to_Python);
+  __pyx_t_2 = PyNumber_Subtract(__pyx_v_end, __pyx_v_start); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 138, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_2);
+  __pyx_t_3 = __Pyx_PyObject_FormatSimple(__pyx_t_2, __pyx_empty_unicode); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 138, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_3);
+  __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
+  __pyx_t_7 = (__Pyx_PyUnicode_MAX_CHAR_VALUE(__pyx_t_3) > __pyx_t_7) ? __Pyx_PyUnicode_MAX_CHAR_VALUE(__pyx_t_3) : __pyx_t_7;
+  __pyx_t_6 += __Pyx_PyUnicode_GET_LENGTH(__pyx_t_3);
+  __Pyx_GIVEREF(__pyx_t_3);
+  PyTuple_SET_ITEM(__pyx_t_1, 1, __pyx_t_3);
+  __pyx_t_3 = 0;
+  __Pyx_INCREF(__pyx_kp_u_seconds);
+  __pyx_t_6 += 9;
+  __Pyx_GIVEREF(__pyx_kp_u_seconds);
+  PyTuple_SET_ITEM(__pyx_t_1, 2, __pyx_kp_u_seconds);
+  __pyx_t_3 = __Pyx_PyUnicode_Join(__pyx_t_1, 3, __pyx_t_6, __pyx_t_7); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 138, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_3);
+  __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
+  __pyx_t_1 = __Pyx_PyObject_CallOneArg(__pyx_builtin_print, __pyx_t_3); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 138, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_1);
+  __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
+  __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
+
+  /* "ppme.pyx":140
+ *     print(f"Time taken to convert to Python object: {end - start} seconds\n")
+ * 
+ *     print("Converting PrefixMap to Python dictionary...")             # <<<<<<<<<<<<<<
+ *     start = time.time()
+ *     py_prefix_map = result_map_to_dict(result)
+ */
+  __pyx_t_1 = __Pyx_PyObject_Call(__pyx_builtin_print, __pyx_tuple__11, NULL); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 140, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_1);
+  __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
+
+  /* "ppme.pyx":141
+ * 
+ *     print("Converting PrefixMap to Python dictionary...")
+ *     start = time.time()             # <<<<<<<<<<<<<<
+ *     py_prefix_map = result_map_to_dict(result)
+ *     end = time.time()
+ */
+  __Pyx_GetModuleGlobalName(__pyx_t_3, __pyx_n_s_time); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 141, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_3);
+  __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_t_3, __pyx_n_s_time); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 141, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_2);
+  __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
+  __pyx_t_3 = NULL;
+  __pyx_t_4 = 0;
+  #if CYTHON_UNPACK_METHODS
+  if (unlikely(PyMethod_Check(__pyx_t_2))) {
+    __pyx_t_3 = PyMethod_GET_SELF(__pyx_t_2);
+    if (likely(__pyx_t_3)) {
+      PyObject* function = PyMethod_GET_FUNCTION(__pyx_t_2);
+      __Pyx_INCREF(__pyx_t_3);
+      __Pyx_INCREF(function);
+      __Pyx_DECREF_SET(__pyx_t_2, function);
+      __pyx_t_4 = 1;
+    }
+  }
+  #endif
+  {
+    PyObject *__pyx_callargs[2] = {__pyx_t_3, NULL};
+    __pyx_t_1 = __Pyx_PyObject_FastCall(__pyx_t_2, __pyx_callargs+1-__pyx_t_4, 0+__pyx_t_4);
+    __Pyx_XDECREF(__pyx_t_3); __pyx_t_3 = 0;
+    if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 141, __pyx_L1_error)
+    __Pyx_GOTREF(__pyx_t_1);
+    __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
+  }
+  __Pyx_DECREF_SET(__pyx_v_start, __pyx_t_1);
+  __pyx_t_1 = 0;
+
+  /* "ppme.pyx":142
+ *     print("Converting PrefixMap to Python dictionary...")
+ *     start = time.time()
+ *     py_prefix_map = result_map_to_dict(result)             # <<<<<<<<<<<<<<
+ *     end = time.time()
+ *     print("Done converting to Python dictionary")
+ */
+  __pyx_t_1 = __pyx_f_4ppme_result_map_to_dict(__pyx_v_result); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 142, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_1);
+  __pyx_v_py_prefix_map = __pyx_t_1;
+  __pyx_t_1 = 0;
+
+  /* "ppme.pyx":143
+ *     start = time.time()
+ *     py_prefix_map = result_map_to_dict(result)
+ *     end = time.time()             # <<<<<<<<<<<<<<
+ *     print("Done converting to Python dictionary")
+ *     print(f"Time taken to convert to Python object: {(end - start) / 60} minutes\n")
+ */
+  __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_time); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 143, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_2);
+  __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_time); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 143, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_3);
+  __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
+  __pyx_t_2 = NULL;
+  __pyx_t_4 = 0;
+  #if CYTHON_UNPACK_METHODS
+  if (unlikely(PyMethod_Check(__pyx_t_3))) {
+    __pyx_t_2 = PyMethod_GET_SELF(__pyx_t_3);
+    if (likely(__pyx_t_2)) {
+      PyObject* function = PyMethod_GET_FUNCTION(__pyx_t_3);
+      __Pyx_INCREF(__pyx_t_2);
+      __Pyx_INCREF(function);
+      __Pyx_DECREF_SET(__pyx_t_3, function);
+      __pyx_t_4 = 1;
+    }
+  }
+  #endif
+  {
+    PyObject *__pyx_callargs[2] = {__pyx_t_2, NULL};
+    __pyx_t_1 = __Pyx_PyObject_FastCall(__pyx_t_3, __pyx_callargs+1-__pyx_t_4, 0+__pyx_t_4);
+    __Pyx_XDECREF(__pyx_t_2); __pyx_t_2 = 0;
+    if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 143, __pyx_L1_error)
+    __Pyx_GOTREF(__pyx_t_1);
+    __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
+  }
+  __Pyx_DECREF_SET(__pyx_v_end, __pyx_t_1);
+  __pyx_t_1 = 0;
+
+  /* "ppme.pyx":144
+ *     py_prefix_map = result_map_to_dict(result)
+ *     end = time.time()
+ *     print("Done converting to Python dictionary")             # <<<<<<<<<<<<<<
+ *     print(f"Time taken to convert to Python object: {(end - start) / 60} minutes\n")
+ * 
+ */
+  __pyx_t_1 = __Pyx_PyObject_Call(__pyx_builtin_print, __pyx_tuple__10, NULL); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 144, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_1);
+  __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
+
+  /* "ppme.pyx":145
+ *     end = time.time()
+ *     print("Done converting to Python dictionary")
+ *     print(f"Time taken to convert to Python object: {(end - start) / 60} minutes\n")             # <<<<<<<<<<<<<<
+ * 
+ *     return py_start_map, py_prefix_map
+ */
+  __pyx_t_1 = PyTuple_New(3); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 145, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_1);
+  __pyx_t_6 = 0;
+  __pyx_t_7 = 127;
+  __Pyx_INCREF(__pyx_kp_u_Time_taken_to_convert_to_Python);
+  __pyx_t_6 += 40;
+  __Pyx_GIVEREF(__pyx_kp_u_Time_taken_to_convert_to_Python);
+  PyTuple_SET_ITEM(__pyx_t_1, 0, __pyx_kp_u_Time_taken_to_convert_to_Python);
+  __pyx_t_3 = PyNumber_Subtract(__pyx_v_end, __pyx_v_start); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 145, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_3);
+  __pyx_t_2 = __Pyx_PyInt_TrueDivideObjC(__pyx_t_3, __pyx_int_60, 60, 0, 0); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 145, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_2);
+  __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
+  __pyx_t_3 = __Pyx_PyObject_FormatSimple(__pyx_t_2, __pyx_empty_unicode); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 145, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_3);
+  __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
+  __pyx_t_7 = (__Pyx_PyUnicode_MAX_CHAR_VALUE(__pyx_t_3) > __pyx_t_7) ? __Pyx_PyUnicode_MAX_CHAR_VALUE(__pyx_t_3) : __pyx_t_7;
+  __pyx_t_6 += __Pyx_PyUnicode_GET_LENGTH(__pyx_t_3);
+  __Pyx_GIVEREF(__pyx_t_3);
+  PyTuple_SET_ITEM(__pyx_t_1, 1, __pyx_t_3);
+  __pyx_t_3 = 0;
+  __Pyx_INCREF(__pyx_kp_u_minutes);
+  __pyx_t_6 += 9;
+  __Pyx_GIVEREF(__pyx_kp_u_minutes);
+  PyTuple_SET_ITEM(__pyx_t_1, 2, __pyx_kp_u_minutes);
+  __pyx_t_3 = __Pyx_PyUnicode_Join(__pyx_t_1, 3, __pyx_t_6, __pyx_t_7); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 145, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_3);
+  __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
+  __pyx_t_1 = __Pyx_PyObject_CallOneArg(__pyx_builtin_print, __pyx_t_3); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 145, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_1);
+  __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
+  __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
+
+  /* "ppme.pyx":147
+ *     print(f"Time taken to convert to Python object: {(end - start) / 60} minutes\n")
+ * 
+ *     return py_start_map, py_prefix_map             # <<<<<<<<<<<<<<
  */
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = __pyx_f_4ppme_result_map_to_dict(__pyx_v_result); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 103, __pyx_L1_error)
+  __pyx_t_1 = PyTuple_New(2); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 147, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
+  __Pyx_INCREF(__pyx_v_py_start_map);
+  __Pyx_GIVEREF(__pyx_v_py_start_map);
+  if (__Pyx_PyTuple_SET_ITEM(__pyx_t_1, 0, __pyx_v_py_start_map)) __PYX_ERR(0, 147, __pyx_L1_error);
+  __Pyx_INCREF(__pyx_v_py_prefix_map);
+  __Pyx_GIVEREF(__pyx_v_py_prefix_map);
+  if (__Pyx_PyTuple_SET_ITEM(__pyx_t_1, 1, __pyx_v_py_prefix_map)) __PYX_ERR(0, 147, __pyx_L1_error);
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
   goto __pyx_L0;
 
-  /* "ppme.pyx":91
+  /* "ppme.pyx":111
  * 
  * # Main function to process prefixes
  * def process_prefix_py(list py_trajectories):             # <<<<<<<<<<<<<<
  *     print("Processing prefixes...")
- * 
+ *     start = time.time()
  */
 
   /* function exit code */
   __pyx_L1_error:;
   __Pyx_XDECREF(__pyx_t_1);
+  __Pyx_XDECREF(__pyx_t_2);
+  __Pyx_XDECREF(__pyx_t_3);
   __Pyx_AddTraceback("ppme.process_prefix_py", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __pyx_r = NULL;
   __pyx_L0:;
+  __Pyx_XDECREF(__pyx_v_start);
+  __Pyx_XDECREF(__pyx_v_end);
+  __Pyx_XDECREF(__pyx_v_py_start_map);
+  __Pyx_XDECREF(__pyx_v_py_prefix_map);
   __Pyx_XGIVEREF(__pyx_r);
   __Pyx_RefNannyFinishContext();
   return __pyx_r;
@@ -5802,25 +6776,36 @@ static PyMethodDef __pyx_methods[] = {
 
 static int __Pyx_CreateStringTabAndInitStrings(void) {
   __Pyx_StringTabEntry __pyx_string_tab[] = {
-    {&__pyx_kp_u_Converting_ResultMap_to_Python_d, __pyx_k_Converting_ResultMap_to_Python_d, sizeof(__pyx_k_Converting_ResultMap_to_Python_d), 0, 1, 0, 0},
+    {&__pyx_kp_u_Begin_processing_prefixes, __pyx_k_Begin_processing_prefixes, sizeof(__pyx_k_Begin_processing_prefixes), 0, 1, 0, 0},
+    {&__pyx_kp_u_Begin_to_compute_start_map, __pyx_k_Begin_to_compute_start_map, sizeof(__pyx_k_Begin_to_compute_start_map), 0, 1, 0, 0},
+    {&__pyx_kp_u_Converting_PrefixMap_to_Python_d, __pyx_k_Converting_PrefixMap_to_Python_d, sizeof(__pyx_k_Converting_PrefixMap_to_Python_d), 0, 1, 0, 0},
+    {&__pyx_kp_u_Converting_StartMap_to_Python_di, __pyx_k_Converting_StartMap_to_Python_di, sizeof(__pyx_k_Converting_StartMap_to_Python_di), 0, 1, 0, 0},
     {&__pyx_kp_u_Done_converting_to_C_Trajectorie, __pyx_k_Done_converting_to_C_Trajectorie, sizeof(__pyx_k_Done_converting_to_C_Trajectorie), 0, 1, 0, 0},
+    {&__pyx_kp_u_Done_converting_to_Python_dictio, __pyx_k_Done_converting_to_Python_dictio, sizeof(__pyx_k_Done_converting_to_Python_dictio), 0, 1, 0, 0},
     {&__pyx_kp_u_Done_processing_prefixes, __pyx_k_Done_processing_prefixes, sizeof(__pyx_k_Done_processing_prefixes), 0, 1, 0, 0},
     {&__pyx_kp_u_Expected_NumPy_array_got, __pyx_k_Expected_NumPy_array_got, sizeof(__pyx_k_Expected_NumPy_array_got), 0, 1, 0, 0},
+    {&__pyx_kp_u_Finished_computing_start_map, __pyx_k_Finished_computing_start_map, sizeof(__pyx_k_Finished_computing_start_map), 0, 1, 0, 0},
     {&__pyx_n_s_ImportError, __pyx_k_ImportError, sizeof(__pyx_k_ImportError), 0, 0, 1, 1},
     {&__pyx_kp_u_Processing_prefixes, __pyx_k_Processing_prefixes, sizeof(__pyx_k_Processing_prefixes), 0, 1, 0, 0},
+    {&__pyx_kp_u_Time_taken_to_compute, __pyx_k_Time_taken_to_compute, sizeof(__pyx_k_Time_taken_to_compute), 0, 1, 0, 0},
+    {&__pyx_kp_u_Time_taken_to_compute_start_map, __pyx_k_Time_taken_to_compute_start_map, sizeof(__pyx_k_Time_taken_to_compute_start_map), 0, 1, 0, 0},
+    {&__pyx_kp_u_Time_taken_to_convert, __pyx_k_Time_taken_to_convert, sizeof(__pyx_k_Time_taken_to_convert), 0, 1, 0, 0},
+    {&__pyx_kp_u_Time_taken_to_convert_to_Python, __pyx_k_Time_taken_to_convert_to_Python, sizeof(__pyx_k_Time_taken_to_convert_to_Python), 0, 1, 0, 0},
     {&__pyx_n_s_TypeError, __pyx_k_TypeError, sizeof(__pyx_k_TypeError), 0, 0, 1, 1},
-    {&__pyx_n_s__11, __pyx_k__11, sizeof(__pyx_k__11), 0, 0, 1, 1},
-    {&__pyx_kp_u__7, __pyx_k__7, sizeof(__pyx_k__7), 0, 1, 0, 0},
-    {&__pyx_n_s__8, __pyx_k__8, sizeof(__pyx_k__8), 0, 0, 1, 1},
+    {&__pyx_kp_u__12, __pyx_k__12, sizeof(__pyx_k__12), 0, 1, 0, 0},
+    {&__pyx_n_s__13, __pyx_k__13, sizeof(__pyx_k__13), 0, 0, 1, 1},
+    {&__pyx_n_s__16, __pyx_k__16, sizeof(__pyx_k__16), 0, 0, 1, 1},
     {&__pyx_n_s_asyncio_coroutines, __pyx_k_asyncio_coroutines, sizeof(__pyx_k_asyncio_coroutines), 0, 0, 1, 1},
     {&__pyx_n_s_cline_in_traceback, __pyx_k_cline_in_traceback, sizeof(__pyx_k_cline_in_traceback), 0, 0, 1, 1},
     {&__pyx_n_s_collections, __pyx_k_collections, sizeof(__pyx_k_collections), 0, 0, 1, 1},
     {&__pyx_n_s_defaultdict, __pyx_k_defaultdict, sizeof(__pyx_k_defaultdict), 0, 0, 1, 1},
+    {&__pyx_n_s_end, __pyx_k_end, sizeof(__pyx_k_end), 0, 0, 1, 1},
     {&__pyx_n_s_import, __pyx_k_import, sizeof(__pyx_k_import), 0, 0, 1, 1},
     {&__pyx_n_s_initializing, __pyx_k_initializing, sizeof(__pyx_k_initializing), 0, 0, 1, 1},
     {&__pyx_kp_u_instead, __pyx_k_instead, sizeof(__pyx_k_instead), 0, 1, 0, 0},
     {&__pyx_n_s_is_coroutine, __pyx_k_is_coroutine, sizeof(__pyx_k_is_coroutine), 0, 0, 1, 1},
     {&__pyx_n_s_main, __pyx_k_main, sizeof(__pyx_k_main), 0, 0, 1, 1},
+    {&__pyx_kp_u_minutes, __pyx_k_minutes, sizeof(__pyx_k_minutes), 0, 1, 0, 0},
     {&__pyx_n_s_name, __pyx_k_name, sizeof(__pyx_k_name), 0, 0, 1, 1},
     {&__pyx_n_s_np, __pyx_k_np, sizeof(__pyx_k_np), 0, 0, 1, 1},
     {&__pyx_n_s_numpy, __pyx_k_numpy, sizeof(__pyx_k_numpy), 0, 0, 1, 1},
@@ -5830,10 +6815,16 @@ static int __Pyx_CreateStringTabAndInitStrings(void) {
     {&__pyx_kp_s_ppme_pyx, __pyx_k_ppme_pyx, sizeof(__pyx_k_ppme_pyx), 0, 0, 1, 0},
     {&__pyx_n_s_print, __pyx_k_print, sizeof(__pyx_k_print), 0, 0, 1, 1},
     {&__pyx_n_s_process_prefix_py, __pyx_k_process_prefix_py, sizeof(__pyx_k_process_prefix_py), 0, 0, 1, 1},
+    {&__pyx_n_s_py_prefix_map, __pyx_k_py_prefix_map, sizeof(__pyx_k_py_prefix_map), 0, 0, 1, 1},
+    {&__pyx_n_s_py_start_map, __pyx_k_py_start_map, sizeof(__pyx_k_py_start_map), 0, 0, 1, 1},
     {&__pyx_n_s_py_trajectories, __pyx_k_py_trajectories, sizeof(__pyx_k_py_trajectories), 0, 0, 1, 1},
     {&__pyx_n_s_result, __pyx_k_result, sizeof(__pyx_k_result), 0, 0, 1, 1},
+    {&__pyx_kp_u_seconds, __pyx_k_seconds, sizeof(__pyx_k_seconds), 0, 1, 0, 0},
     {&__pyx_n_s_spec, __pyx_k_spec, sizeof(__pyx_k_spec), 0, 0, 1, 1},
+    {&__pyx_n_s_start, __pyx_k_start, sizeof(__pyx_k_start), 0, 0, 1, 1},
+    {&__pyx_n_s_start_map, __pyx_k_start_map, sizeof(__pyx_k_start_map), 0, 0, 1, 1},
     {&__pyx_n_s_test, __pyx_k_test, sizeof(__pyx_k_test), 0, 0, 1, 1},
+    {&__pyx_n_s_time, __pyx_k_time, sizeof(__pyx_k_time), 0, 0, 1, 1},
     {&__pyx_n_s_tqdm, __pyx_k_tqdm, sizeof(__pyx_k_tqdm), 0, 0, 1, 1},
     {&__pyx_n_s_trajectories, __pyx_k_trajectories, sizeof(__pyx_k_trajectories), 0, 0, 1, 1},
     {0, 0, 0, 0, 0, 0, 0}
@@ -5842,8 +6833,8 @@ static int __Pyx_CreateStringTabAndInitStrings(void) {
 }
 /* #### Code section: cached_builtins ### */
 static CYTHON_SMALL_CODE int __Pyx_InitCachedBuiltins(void) {
-  __pyx_builtin_TypeError = __Pyx_GetBuiltinName(__pyx_n_s_TypeError); if (!__pyx_builtin_TypeError) __PYX_ERR(0, 55, __pyx_L1_error)
-  __pyx_builtin_print = __Pyx_GetBuiltinName(__pyx_n_s_print); if (!__pyx_builtin_print) __PYX_ERR(0, 92, __pyx_L1_error)
+  __pyx_builtin_TypeError = __Pyx_GetBuiltinName(__pyx_n_s_TypeError); if (!__pyx_builtin_TypeError) __PYX_ERR(0, 58, __pyx_L1_error)
+  __pyx_builtin_print = __Pyx_GetBuiltinName(__pyx_n_s_print); if (!__pyx_builtin_print) __PYX_ERR(0, 112, __pyx_L1_error)
   __pyx_builtin_ImportError = __Pyx_GetBuiltinName(__pyx_n_s_ImportError); if (!__pyx_builtin_ImportError) __PYX_ERR(1, 1043, __pyx_L1_error)
   return 0;
   __pyx_L1_error:;
@@ -5877,61 +6868,116 @@ static CYTHON_SMALL_CODE int __Pyx_InitCachedConstants(void) {
   __Pyx_GOTREF(__pyx_tuple__2);
   __Pyx_GIVEREF(__pyx_tuple__2);
 
-  /* "ppme.pyx":92
+  /* "ppme.pyx":112
  * # Main function to process prefixes
  * def process_prefix_py(list py_trajectories):
  *     print("Processing prefixes...")             # <<<<<<<<<<<<<<
- * 
+ *     start = time.time()
  *     cdef vector[Trajectory] trajectories = list_to_vector(py_trajectories)
  */
-  __pyx_tuple__3 = PyTuple_Pack(1, __pyx_kp_u_Processing_prefixes); if (unlikely(!__pyx_tuple__3)) __PYX_ERR(0, 92, __pyx_L1_error)
+  __pyx_tuple__3 = PyTuple_Pack(1, __pyx_kp_u_Processing_prefixes); if (unlikely(!__pyx_tuple__3)) __PYX_ERR(0, 112, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_tuple__3);
   __Pyx_GIVEREF(__pyx_tuple__3);
 
-  /* "ppme.pyx":96
+  /* "ppme.pyx":116
  *     cdef vector[Trajectory] trajectories = list_to_vector(py_trajectories)
- * 
+ *     end = time.time()
  *     print("Done converting to C++ Trajectories")             # <<<<<<<<<<<<<<
+ *     print(f"Time taken to convert: {end - start} seconds\n")
  * 
- *     cdef ResultMap result = process_prefix(trajectories)
  */
-  __pyx_tuple__4 = PyTuple_Pack(1, __pyx_kp_u_Done_converting_to_C_Trajectorie); if (unlikely(!__pyx_tuple__4)) __PYX_ERR(0, 96, __pyx_L1_error)
+  __pyx_tuple__4 = PyTuple_Pack(1, __pyx_kp_u_Done_converting_to_C_Trajectorie); if (unlikely(!__pyx_tuple__4)) __PYX_ERR(0, 116, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_tuple__4);
   __Pyx_GIVEREF(__pyx_tuple__4);
 
-  /* "ppme.pyx":100
- *     cdef ResultMap result = process_prefix(trajectories)
+  /* "ppme.pyx":119
+ *     print(f"Time taken to convert: {end - start} seconds\n")
  * 
- *     print("Done processing prefixes")             # <<<<<<<<<<<<<<
- *     print("Converting ResultMap to Python dictionary...")
- * 
+ *     print("Begin to compute start map...")             # <<<<<<<<<<<<<<
+ *     start = time.time()
+ *     cdef StartMap start_map = process_start(trajectories)
  */
-  __pyx_tuple__5 = PyTuple_Pack(1, __pyx_kp_u_Done_processing_prefixes); if (unlikely(!__pyx_tuple__5)) __PYX_ERR(0, 100, __pyx_L1_error)
+  __pyx_tuple__5 = PyTuple_Pack(1, __pyx_kp_u_Begin_to_compute_start_map); if (unlikely(!__pyx_tuple__5)) __PYX_ERR(0, 119, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_tuple__5);
   __Pyx_GIVEREF(__pyx_tuple__5);
 
-  /* "ppme.pyx":101
+  /* "ppme.pyx":123
+ *     cdef StartMap start_map = process_start(trajectories)
+ *     end = time.time()
+ *     print("Finished computing start map")             # <<<<<<<<<<<<<<
+ *     print(f"Time taken to compute start map: {end - start} seconds\n")
  * 
- *     print("Done processing prefixes")
- *     print("Converting ResultMap to Python dictionary...")             # <<<<<<<<<<<<<<
- * 
- *     return result_map_to_dict(result)
  */
-  __pyx_tuple__6 = PyTuple_Pack(1, __pyx_kp_u_Converting_ResultMap_to_Python_d); if (unlikely(!__pyx_tuple__6)) __PYX_ERR(0, 101, __pyx_L1_error)
+  __pyx_tuple__6 = PyTuple_Pack(1, __pyx_kp_u_Finished_computing_start_map); if (unlikely(!__pyx_tuple__6)) __PYX_ERR(0, 123, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_tuple__6);
   __Pyx_GIVEREF(__pyx_tuple__6);
 
-  /* "ppme.pyx":91
+  /* "ppme.pyx":127
+ * 
+ *     start = time.time()
+ *     print("Begin processing prefixes...")             # <<<<<<<<<<<<<<
+ *     cdef PrefixMap result = process_prefix(trajectories)
+ *     end = time.time()
+ */
+  __pyx_tuple__7 = PyTuple_Pack(1, __pyx_kp_u_Begin_processing_prefixes); if (unlikely(!__pyx_tuple__7)) __PYX_ERR(0, 127, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_tuple__7);
+  __Pyx_GIVEREF(__pyx_tuple__7);
+
+  /* "ppme.pyx":130
+ *     cdef PrefixMap result = process_prefix(trajectories)
+ *     end = time.time()
+ *     print("Done processing prefixes")             # <<<<<<<<<<<<<<
+ *     print(f"Time taken to compute: {(end - start) / 60} minutes\n")
+ * 
+ */
+  __pyx_tuple__8 = PyTuple_Pack(1, __pyx_kp_u_Done_processing_prefixes); if (unlikely(!__pyx_tuple__8)) __PYX_ERR(0, 130, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_tuple__8);
+  __Pyx_GIVEREF(__pyx_tuple__8);
+
+  /* "ppme.pyx":133
+ *     print(f"Time taken to compute: {(end - start) / 60} minutes\n")
+ * 
+ *     print("Converting StartMap to Python dictionary...")             # <<<<<<<<<<<<<<
+ *     start = time.time()
+ *     py_start_map = start_map_to_dict(start_map)
+ */
+  __pyx_tuple__9 = PyTuple_Pack(1, __pyx_kp_u_Converting_StartMap_to_Python_di); if (unlikely(!__pyx_tuple__9)) __PYX_ERR(0, 133, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_tuple__9);
+  __Pyx_GIVEREF(__pyx_tuple__9);
+
+  /* "ppme.pyx":137
+ *     py_start_map = start_map_to_dict(start_map)
+ *     end = time.time()
+ *     print("Done converting to Python dictionary")             # <<<<<<<<<<<<<<
+ *     print(f"Time taken to convert to Python object: {end - start} seconds\n")
+ * 
+ */
+  __pyx_tuple__10 = PyTuple_Pack(1, __pyx_kp_u_Done_converting_to_Python_dictio); if (unlikely(!__pyx_tuple__10)) __PYX_ERR(0, 137, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_tuple__10);
+  __Pyx_GIVEREF(__pyx_tuple__10);
+
+  /* "ppme.pyx":140
+ *     print(f"Time taken to convert to Python object: {end - start} seconds\n")
+ * 
+ *     print("Converting PrefixMap to Python dictionary...")             # <<<<<<<<<<<<<<
+ *     start = time.time()
+ *     py_prefix_map = result_map_to_dict(result)
+ */
+  __pyx_tuple__11 = PyTuple_Pack(1, __pyx_kp_u_Converting_PrefixMap_to_Python_d); if (unlikely(!__pyx_tuple__11)) __PYX_ERR(0, 140, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_tuple__11);
+  __Pyx_GIVEREF(__pyx_tuple__11);
+
+  /* "ppme.pyx":111
  * 
  * # Main function to process prefixes
  * def process_prefix_py(list py_trajectories):             # <<<<<<<<<<<<<<
  *     print("Processing prefixes...")
- * 
+ *     start = time.time()
  */
-  __pyx_tuple__9 = PyTuple_Pack(3, __pyx_n_s_py_trajectories, __pyx_n_s_trajectories, __pyx_n_s_result); if (unlikely(!__pyx_tuple__9)) __PYX_ERR(0, 91, __pyx_L1_error)
-  __Pyx_GOTREF(__pyx_tuple__9);
-  __Pyx_GIVEREF(__pyx_tuple__9);
-  __pyx_codeobj__10 = (PyObject*)__Pyx_PyCode_New(1, 0, 0, 3, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__9, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_ppme_pyx, __pyx_n_s_process_prefix_py, 91, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__10)) __PYX_ERR(0, 91, __pyx_L1_error)
+  __pyx_tuple__14 = PyTuple_Pack(8, __pyx_n_s_py_trajectories, __pyx_n_s_start, __pyx_n_s_trajectories, __pyx_n_s_end, __pyx_n_s_start_map, __pyx_n_s_result, __pyx_n_s_py_start_map, __pyx_n_s_py_prefix_map); if (unlikely(!__pyx_tuple__14)) __PYX_ERR(0, 111, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_tuple__14);
+  __Pyx_GIVEREF(__pyx_tuple__14);
+  __pyx_codeobj__15 = (PyObject*)__Pyx_PyCode_New(1, 0, 0, 8, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__14, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_ppme_pyx, __pyx_n_s_process_prefix_py, 111, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__15)) __PYX_ERR(0, 111, __pyx_L1_error)
   __Pyx_RefNannyFinishContext();
   return 0;
   __pyx_L1_error:;
@@ -5942,6 +6988,7 @@ static CYTHON_SMALL_CODE int __Pyx_InitCachedConstants(void) {
 
 static CYTHON_SMALL_CODE int __Pyx_InitConstants(void) {
   if (__Pyx_CreateStringTabAndInitStrings() < 0) __PYX_ERR(0, 1, __pyx_L1_error);
+  __pyx_int_60 = PyInt_FromLong(60); if (unlikely(!__pyx_int_60)) __PYX_ERR(0, 1, __pyx_L1_error)
   return 0;
   __pyx_L1_error:;
   return -1;
@@ -6381,7 +7428,7 @@ if (!__Pyx_RefNanny) {
  * from collections import defaultdict
  * from tqdm import tqdm             # <<<<<<<<<<<<<<
  * import numpy as np
- * 
+ * import time
  */
   __pyx_t_3 = PyList_New(1); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 5, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_3);
@@ -6401,24 +7448,36 @@ if (!__Pyx_RefNanny) {
  * from collections import defaultdict
  * from tqdm import tqdm
  * import numpy as np             # <<<<<<<<<<<<<<
+ * import time
  * 
- * cimport numpy as cnp
  */
   __pyx_t_2 = __Pyx_ImportDottedModule(__pyx_n_s_numpy, NULL); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 6, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   if (PyDict_SetItem(__pyx_d, __pyx_n_s_np, __pyx_t_2) < 0) __PYX_ERR(0, 6, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
-  /* "ppme.pyx":91
+  /* "ppme.pyx":7
+ * from tqdm import tqdm
+ * import numpy as np
+ * import time             # <<<<<<<<<<<<<<
+ * 
+ * cimport numpy as cnp
+ */
+  __pyx_t_2 = __Pyx_ImportDottedModule(__pyx_n_s_time, NULL); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 7, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_2);
+  if (PyDict_SetItem(__pyx_d, __pyx_n_s_time, __pyx_t_2) < 0) __PYX_ERR(0, 7, __pyx_L1_error)
+  __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
+
+  /* "ppme.pyx":111
  * 
  * # Main function to process prefixes
  * def process_prefix_py(list py_trajectories):             # <<<<<<<<<<<<<<
  *     print("Processing prefixes...")
- * 
+ *     start = time.time()
  */
-  __pyx_t_2 = __Pyx_CyFunction_New(&__pyx_mdef_4ppme_1process_prefix_py, 0, __pyx_n_s_process_prefix_py, NULL, __pyx_n_s_ppme, __pyx_d, ((PyObject *)__pyx_codeobj__10)); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 91, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_CyFunction_New(&__pyx_mdef_4ppme_1process_prefix_py, 0, __pyx_n_s_process_prefix_py, NULL, __pyx_n_s_ppme, __pyx_d, ((PyObject *)__pyx_codeobj__15)); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 111, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
-  if (PyDict_SetItem(__pyx_d, __pyx_n_s_process_prefix_py, __pyx_t_2) < 0) __PYX_ERR(0, 91, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_d, __pyx_n_s_process_prefix_py, __pyx_t_2) < 0) __PYX_ERR(0, 111, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
   /* "ppme.pyx":1
@@ -8365,6 +9424,170 @@ bad:
     return 0;
 }
 
+/* PyDictVersioning */
+  #if CYTHON_USE_DICT_VERSIONS && CYTHON_USE_TYPE_SLOTS
+static CYTHON_INLINE PY_UINT64_T __Pyx_get_tp_dict_version(PyObject *obj) {
+    PyObject *dict = Py_TYPE(obj)->tp_dict;
+    return likely(dict) ? __PYX_GET_DICT_VERSION(dict) : 0;
+}
+static CYTHON_INLINE PY_UINT64_T __Pyx_get_object_dict_version(PyObject *obj) {
+    PyObject **dictptr = NULL;
+    Py_ssize_t offset = Py_TYPE(obj)->tp_dictoffset;
+    if (offset) {
+#if CYTHON_COMPILING_IN_CPYTHON
+        dictptr = (likely(offset > 0)) ? (PyObject **) ((char *)obj + offset) : _PyObject_GetDictPtr(obj);
+#else
+        dictptr = _PyObject_GetDictPtr(obj);
+#endif
+    }
+    return (dictptr && *dictptr) ? __PYX_GET_DICT_VERSION(*dictptr) : 0;
+}
+static CYTHON_INLINE int __Pyx_object_dict_version_matches(PyObject* obj, PY_UINT64_T tp_dict_version, PY_UINT64_T obj_dict_version) {
+    PyObject *dict = Py_TYPE(obj)->tp_dict;
+    if (unlikely(!dict) || unlikely(tp_dict_version != __PYX_GET_DICT_VERSION(dict)))
+        return 0;
+    return obj_dict_version == __Pyx_get_object_dict_version(obj);
+}
+#endif
+
+/* GetModuleGlobalName */
+  #if CYTHON_USE_DICT_VERSIONS
+static PyObject *__Pyx__GetModuleGlobalName(PyObject *name, PY_UINT64_T *dict_version, PyObject **dict_cached_value)
+#else
+static CYTHON_INLINE PyObject *__Pyx__GetModuleGlobalName(PyObject *name)
+#endif
+{
+    PyObject *result;
+#if !CYTHON_AVOID_BORROWED_REFS
+#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030500A1 && PY_VERSION_HEX < 0x030d0000
+    result = _PyDict_GetItem_KnownHash(__pyx_d, name, ((PyASCIIObject *) name)->hash);
+    __PYX_UPDATE_DICT_CACHE(__pyx_d, result, *dict_cached_value, *dict_version)
+    if (likely(result)) {
+        return __Pyx_NewRef(result);
+    } else if (unlikely(PyErr_Occurred())) {
+        return NULL;
+    }
+#elif CYTHON_COMPILING_IN_LIMITED_API
+    if (unlikely(!__pyx_m)) {
+        return NULL;
+    }
+    result = PyObject_GetAttr(__pyx_m, name);
+    if (likely(result)) {
+        return result;
+    }
+#else
+    result = PyDict_GetItem(__pyx_d, name);
+    __PYX_UPDATE_DICT_CACHE(__pyx_d, result, *dict_cached_value, *dict_version)
+    if (likely(result)) {
+        return __Pyx_NewRef(result);
+    }
+#endif
+#else
+    result = PyObject_GetItem(__pyx_d, name);
+    __PYX_UPDATE_DICT_CACHE(__pyx_d, result, *dict_cached_value, *dict_version)
+    if (likely(result)) {
+        return __Pyx_NewRef(result);
+    }
+    PyErr_Clear();
+#endif
+    return __Pyx_GetBuiltinName(name);
+}
+
+/* PyIntBinop */
+  #if !CYTHON_COMPILING_IN_PYPY
+static PyObject* __Pyx_PyInt_TrueDivideObjC(PyObject *op1, PyObject *op2, long intval, int inplace, int zerodivision_check) {
+    CYTHON_MAYBE_UNUSED_VAR(intval);
+    CYTHON_MAYBE_UNUSED_VAR(inplace);
+    CYTHON_UNUSED_VAR(zerodivision_check);
+    #if PY_MAJOR_VERSION < 3
+    if (likely(PyInt_CheckExact(op1))) {
+        const long b = intval;
+        long a = PyInt_AS_LONG(op1);
+        
+            if (8 * sizeof(long) <= 53 || likely(labs(a) <= ((PY_LONG_LONG)1 << 53))) {
+                return PyFloat_FromDouble((double)a / (double)b);
+            }
+            return PyInt_Type.tp_as_number->nb_true_divide(op1, op2);
+    }
+    #endif
+    #if CYTHON_USE_PYLONG_INTERNALS
+    if (likely(PyLong_CheckExact(op1))) {
+        const long b = intval;
+        long a, x;
+        if (unlikely(__Pyx_PyLong_IsZero(op1))) {
+        }
+        if (likely(__Pyx_PyLong_IsCompact(op1))) {
+            a = __Pyx_PyLong_CompactValue(op1);
+        } else {
+            const digit* digits = __Pyx_PyLong_Digits(op1);
+            const Py_ssize_t size = __Pyx_PyLong_SignedDigitCount(op1);
+            switch (size) {
+                case -2:
+                    if (8 * sizeof(long) - 1 > 2 * PyLong_SHIFT && 1 * PyLong_SHIFT < 53) {
+                        a = -(long) (((((unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0]));
+                        break;
+                    }
+                    CYTHON_FALLTHROUGH;
+                case 2:
+                    if (8 * sizeof(long) - 1 > 2 * PyLong_SHIFT && 1 * PyLong_SHIFT < 53) {
+                        a = (long) (((((unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0]));
+                        break;
+                    }
+                    CYTHON_FALLTHROUGH;
+                case -3:
+                    if (8 * sizeof(long) - 1 > 3 * PyLong_SHIFT && 2 * PyLong_SHIFT < 53) {
+                        a = -(long) (((((((unsigned long)digits[2]) << PyLong_SHIFT) | (unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0]));
+                        break;
+                    }
+                    CYTHON_FALLTHROUGH;
+                case 3:
+                    if (8 * sizeof(long) - 1 > 3 * PyLong_SHIFT && 2 * PyLong_SHIFT < 53) {
+                        a = (long) (((((((unsigned long)digits[2]) << PyLong_SHIFT) | (unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0]));
+                        break;
+                    }
+                    CYTHON_FALLTHROUGH;
+                case -4:
+                    if (8 * sizeof(long) - 1 > 4 * PyLong_SHIFT && 3 * PyLong_SHIFT < 53) {
+                        a = -(long) (((((((((unsigned long)digits[3]) << PyLong_SHIFT) | (unsigned long)digits[2]) << PyLong_SHIFT) | (unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0]));
+                        break;
+                    }
+                    CYTHON_FALLTHROUGH;
+                case 4:
+                    if (8 * sizeof(long) - 1 > 4 * PyLong_SHIFT && 3 * PyLong_SHIFT < 53) {
+                        a = (long) (((((((((unsigned long)digits[3]) << PyLong_SHIFT) | (unsigned long)digits[2]) << PyLong_SHIFT) | (unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0]));
+                        break;
+                    }
+                    CYTHON_FALLTHROUGH;
+                default: return PyLong_Type.tp_as_number->nb_true_divide(op1, op2);
+            }
+        }
+                if ((8 * sizeof(long) <= 53 || likely(labs(a) <= ((PY_LONG_LONG)1 << 53)))
+                        || __Pyx_PyLong_DigitCount(op1) <= 52 / PyLong_SHIFT) {
+                    return PyFloat_FromDouble((double)a / (double)b);
+                }
+                return PyLong_Type.tp_as_number->nb_true_divide(op1, op2);
+            return PyLong_FromLong(x);
+        
+    }
+    #endif
+    if (PyFloat_CheckExact(op1)) {
+        const long b = intval;
+#if CYTHON_COMPILING_IN_LIMITED_API
+        double a = __pyx_PyFloat_AsDouble(op1);
+#else
+        double a = PyFloat_AS_DOUBLE(op1);
+#endif
+            double result;
+            
+            PyFPE_START_PROTECT("divide", return NULL)
+            result = ((double)a) / (double)b;
+            PyFPE_END_PROTECT(result)
+            return PyFloat_FromDouble(result);
+    }
+    return (inplace ? PyNumber_InPlaceTrueDivide : PyNumber_TrueDivide)(op1, op2);
+}
+#endif
+
 /* TypeImport */
   #ifndef __PYX_HAVE_RT_ImportType_3_0_11
 #define __PYX_HAVE_RT_ImportType_3_0_11
@@ -8516,7 +9739,7 @@ bad:
         if (unlikely(!module_name_str)) { goto modbad; }
         module_name = PyUnicode_FromString(module_name_str);
         if (unlikely(!module_name)) { goto modbad; }
-        module_dot = PyUnicode_Concat(module_name, __pyx_kp_u__7);
+        module_dot = PyUnicode_Concat(module_name, __pyx_kp_u__12);
         if (unlikely(!module_dot)) { goto modbad; }
         full_name = PyUnicode_Concat(module_dot, name);
         if (unlikely(!full_name)) { goto modbad; }
@@ -8624,7 +9847,7 @@ static PyObject *__Pyx_ImportDottedModule_WalkParts(PyObject *module, PyObject *
 #endif
 static PyObject *__Pyx__ImportDottedModule(PyObject *name, PyObject *parts_tuple) {
 #if PY_MAJOR_VERSION < 3
-    PyObject *module, *from_list, *star = __pyx_n_s__8;
+    PyObject *module, *from_list, *star = __pyx_n_s__13;
     CYTHON_UNUSED_VAR(parts_tuple);
     from_list = PyList_New(1);
     if (unlikely(!from_list))
@@ -9927,32 +11150,6 @@ static CYTHON_INLINE void __Pyx_CyFunction_SetAnnotationsDict(PyObject *func, Py
     return op;
 }
 
-/* PyDictVersioning */
-  #if CYTHON_USE_DICT_VERSIONS && CYTHON_USE_TYPE_SLOTS
-static CYTHON_INLINE PY_UINT64_T __Pyx_get_tp_dict_version(PyObject *obj) {
-    PyObject *dict = Py_TYPE(obj)->tp_dict;
-    return likely(dict) ? __PYX_GET_DICT_VERSION(dict) : 0;
-}
-static CYTHON_INLINE PY_UINT64_T __Pyx_get_object_dict_version(PyObject *obj) {
-    PyObject **dictptr = NULL;
-    Py_ssize_t offset = Py_TYPE(obj)->tp_dictoffset;
-    if (offset) {
-#if CYTHON_COMPILING_IN_CPYTHON
-        dictptr = (likely(offset > 0)) ? (PyObject **) ((char *)obj + offset) : _PyObject_GetDictPtr(obj);
-#else
-        dictptr = _PyObject_GetDictPtr(obj);
-#endif
-    }
-    return (dictptr && *dictptr) ? __PYX_GET_DICT_VERSION(*dictptr) : 0;
-}
-static CYTHON_INLINE int __Pyx_object_dict_version_matches(PyObject* obj, PY_UINT64_T tp_dict_version, PY_UINT64_T obj_dict_version) {
-    PyObject *dict = Py_TYPE(obj)->tp_dict;
-    if (unlikely(!dict) || unlikely(tp_dict_version != __PYX_GET_DICT_VERSION(dict)))
-        return 0;
-    return obj_dict_version == __Pyx_get_object_dict_version(obj);
-}
-#endif
-
 /* CLineInTraceback */
   #ifndef CYTHON_CLINE_IN_TRACEBACK
 static int __Pyx_CLineForTraceback(PyThreadState *tstate, int c_line) {
@@ -10757,77 +11954,6 @@ static void __Pyx_ReleaseBuffer(Py_buffer *view) {
     #endif
 #endif
 
-/* CIntToPy */
-  static CYTHON_INLINE PyObject* __Pyx_PyInt_From_int(int value) {
-#ifdef __Pyx_HAS_GCC_DIAGNOSTIC
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wconversion"
-#endif
-    const int neg_one = (int) -1, const_zero = (int) 0;
-#ifdef __Pyx_HAS_GCC_DIAGNOSTIC
-#pragma GCC diagnostic pop
-#endif
-    const int is_unsigned = neg_one > const_zero;
-    if (is_unsigned) {
-        if (sizeof(int) < sizeof(long)) {
-            return PyInt_FromLong((long) value);
-        } else if (sizeof(int) <= sizeof(unsigned long)) {
-            return PyLong_FromUnsignedLong((unsigned long) value);
-#ifdef HAVE_LONG_LONG
-        } else if (sizeof(int) <= sizeof(unsigned PY_LONG_LONG)) {
-            return PyLong_FromUnsignedLongLong((unsigned PY_LONG_LONG) value);
-#endif
-        }
-    } else {
-        if (sizeof(int) <= sizeof(long)) {
-            return PyInt_FromLong((long) value);
-#ifdef HAVE_LONG_LONG
-        } else if (sizeof(int) <= sizeof(PY_LONG_LONG)) {
-            return PyLong_FromLongLong((PY_LONG_LONG) value);
-#endif
-        }
-    }
-    {
-        unsigned char *bytes = (unsigned char *)&value;
-#if !CYTHON_COMPILING_IN_LIMITED_API && PY_VERSION_HEX >= 0x030d00A4
-        if (is_unsigned) {
-            return PyLong_FromUnsignedNativeBytes(bytes, sizeof(value), -1);
-        } else {
-            return PyLong_FromNativeBytes(bytes, sizeof(value), -1);
-        }
-#elif !CYTHON_COMPILING_IN_LIMITED_API && PY_VERSION_HEX < 0x030d0000
-        int one = 1; int little = (int)*(unsigned char *)&one;
-        return _PyLong_FromByteArray(bytes, sizeof(int),
-                                     little, !is_unsigned);
-#else
-        int one = 1; int little = (int)*(unsigned char *)&one;
-        PyObject *from_bytes, *result = NULL;
-        PyObject *py_bytes = NULL, *arg_tuple = NULL, *kwds = NULL, *order_str = NULL;
-        from_bytes = PyObject_GetAttrString((PyObject*)&PyLong_Type, "from_bytes");
-        if (!from_bytes) return NULL;
-        py_bytes = PyBytes_FromStringAndSize((char*)bytes, sizeof(int));
-        if (!py_bytes) goto limited_bad;
-        order_str = PyUnicode_FromString(little ? "little" : "big");
-        if (!order_str) goto limited_bad;
-        arg_tuple = PyTuple_Pack(2, py_bytes, order_str);
-        if (!arg_tuple) goto limited_bad;
-        if (!is_unsigned) {
-            kwds = PyDict_New();
-            if (!kwds) goto limited_bad;
-            if (PyDict_SetItemString(kwds, "signed", __Pyx_NewRef(Py_True))) goto limited_bad;
-        }
-        result = PyObject_Call(from_bytes, arg_tuple, kwds);
-        limited_bad:
-        Py_XDECREF(kwds);
-        Py_XDECREF(arg_tuple);
-        Py_XDECREF(order_str);
-        Py_XDECREF(py_bytes);
-        Py_XDECREF(from_bytes);
-        return result;
-#endif
-    }
-}
-
 /* FormatTypeName */
   #if CYTHON_COMPILING_IN_LIMITED_API
 static __Pyx_TypeName
@@ -10838,7 +11964,7 @@ __Pyx_PyType_GetName(PyTypeObject* tp)
     if (unlikely(name == NULL) || unlikely(!PyUnicode_Check(name))) {
         PyErr_Clear();
         Py_XDECREF(name);
-        name = __Pyx_NewRef(__pyx_n_s__11);
+        name = __Pyx_NewRef(__pyx_n_s__16);
     }
     return name;
 }
