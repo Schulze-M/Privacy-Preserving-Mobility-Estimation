@@ -60,17 +60,13 @@ def load_data() -> trie:
     if not is_normal_coords:
         trajs = [np.array([[coord[1], coord[0]] for coord in array]) for array in trajs]
 
-    # get the prefixes of the trajectories
-    # TODO currently fixed at the first 10_000 trajectories, change this to the full dataset
-    # TODO is done due to runtime -> all elements would take 16h to insert
-    # get_prefixis(trajs[:10_000])
-
     # create the trie
-    start, prefix = ppme.process_prefix_py(trajs[:200_000])
+    start, prefix = ppme.process_prefix_py(trajs[:500_000])
+    print(len(prefix))
     
     # test the results
     if args.test:
-        test_cpp_results(trajs[:10_000], start, prefix)
+        test_cpp_results(trajs[:100_000], start, prefix)
 
 
 if __name__ == '__main__':

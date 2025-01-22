@@ -7,11 +7,14 @@ import numpy as np
 import time
 
 cimport numpy as cnp
+from cython cimport boundscheck
+from libc.math cimport round
 from libcpp.vector cimport vector
 from libcpp.unordered_map cimport unordered_map
 from libcpp.string cimport string
 from libcpp.utility cimport pair
 from libcpp cimport bool
+from libcpp.set cimport set
 
 
 # Import C++ header file
@@ -20,16 +23,20 @@ cdef extern from "./cpp_trie/include/main.h":
     cdef cppclass Coordinate:
         double data[2]
 
+    cdef cppclass CountCoordinate:
+        double data[3]
+
     ctypedef vector[Coordinate] Trajectory
-    ctypedef unordered_map[Coordinate, unordered_map[Coordinate, double]] PrefixMap
+    ctypedef unordered_map[Coordinate, vector[CountCoordinate]] PrefixMap
     ctypedef unordered_map[Coordinate, double] StartMap
 
     StartMap process_start(const vector[Trajectory]& trajectories)
     PrefixMap process_prefix(const vector[Trajectory]& trajectories)
+    PrefixMap process_test(const Trajectory trajec, const StartMap start)
 
-
+@boundscheck(False)
 # convert NumPy array to a fixed sized C++ array
-cdef Coordinate np_to_coordinate(cnp.ndarray[cnp.npy_float64, ndim=1] arr):
+cdef Coordinate np_to_coordinate(double[::1] arr) noexcept nogil:
     cdef Coordinate coord
 
     coord.data[0] = arr[0]
@@ -40,22 +47,54 @@ cdef Coordinate np_to_coordinate(cnp.ndarray[cnp.npy_float64, ndim=1] arr):
 # Convert NumPy arrays to C++ Trajectory
 cdef Trajectory np_to_trajectory(cnp.ndarray[cnp.npy_float64, ndim=2] arr):
     cdef Trajectory traj
+    cdef set[pair[double, double]] seen
+    cdef pair[double, double] rounded_pair
+    cdef double rounded_x, rounded_y
+    cdef Coordinate coord
+    cdef size_t i
 
-    for coord in arr:
-        traj.push_back(np_to_coordinate(coord)) # Push the converted array into the Trajectory
+    # Allocate memory for the Trajectory
+    traj.reserve(arr.shape[0])
+
+    # Iterate over the NumPy array
+    # Check if the rounded values are already seen
+    # Convert each NumPy array into a Coordinate and push it into the Trajectory
+    for i in range(arr.shape[0]):
+        coord = np_to_coordinate(arr[i])
+        rounded_x = round(coord.data[0] * 10000) / 10000
+        rounded_y = round(coord.data[1] * 10000) / 10000
+
+        rounded_pair.first = rounded_x
+        rounded_pair.second = rounded_y
+
+        # Check if the rounded values are already seen
+        if seen.find(rounded_pair) == seen.end():
+            traj.push_back(coord)
+            seen.insert(rounded_pair)
+
+    # Shrink the Trajectory to fit the number of elements
+    traj.shrink_to_fit()
+    
     return traj
 
 # Convert Python list of NumPy arrays to C++ vector of Trajectories
 cdef vector[Trajectory] list_to_vector(list py_list):
     cdef vector[Trajectory] trajectories
+    cdef cnp.ndarray[cnp.npy_float64, ndim=2] arr
+
+    # Allocate memory for the vector
+    trajectories.reserve(len(py_list))
 
     for arr in py_list:
-        if isinstance(arr, cnp.ndarray):  # Check if the element is a NumPy array
+        try:  # Check if the element is a NumPy array
             # Directly convert each NumPy array into a Trajectory
-            trajectories.push_back(np_to_trajectory(arr))  
-        else:
+            trajectories.push_back(np_to_trajectory(arr))
+        except Exception:
             # Handle the case where the element is not a NumPy array
-            raise TypeError(f"Expected NumPy array, got {type(arr)} instead.")
+            raise TypeError(f"Expected NumPy array, got {type(arr)} instead.\n")
+
+    # Shrink the vector to fit the number of elements
+    trajectories.shrink_to_fit()
 
     return trajectories
 
@@ -81,29 +120,32 @@ cdef dict start_map_to_dict(StartMap start_map):
 cdef result_map_to_dict(PrefixMap result):
     py_result = {}
     cdef Coordinate key, inner_key
-    cdef unordered_map[Coordinate, double] inner_map
-    cdef pair[Coordinate, unordered_map[Coordinate, double]] outer_pair
-    cdef pair[Coordinate, double] inner_pair
+    cdef CountCoordinate coord1, coord2, cnt
+    cdef vector[CountCoordinate] inner_vector
+    cdef pair[Coordinate, vector[CountCoordinate]] outer_pair
+    cdef CountCoordinate inner_pair
 
     # Iterate over the PrefixMap
     for outer_pair in result:
         key = outer_pair.first
-        inner_map = outer_pair.second
+        inner_vector = outer_pair.second
 
         # Convert the outer key (Trajectory) to a hashable Python tuple
         hashable_key = tuple((key.data[0], key.data[1]))
 
-        py_inner_map = {}
+        py_inner_list = []
         # Iterate over the inner map
-        for inner_pair in inner_map:
-            inner_key = inner_pair.first
-            value = inner_pair.second
+        for inner_pair in inner_vector:
+            py_coord_list = []
 
-            # Convert the inner key (Trajectory) to a hashable Python tuple
-            hashable_inner_key = tuple((inner_key.data[0], inner_key.data[1]))
-            py_inner_map[hashable_inner_key] = value
+            # Extract elements from CountCoordinate's data array
+            py_coord_list.append(float(inner_pair.data[0]))
+            py_coord_list.append(float(inner_pair.data[1]))
+            py_coord_list.append(float(inner_pair.data[2]))
 
-        py_result[hashable_key] = py_inner_map
+            py_inner_list.append(py_coord_list)
+
+        py_result[hashable_key] = py_inner_list
 
     return py_result
 

@@ -66,15 +66,15 @@ void print_trajectories(const std::vector<Trajectory>& trajectories) {
 
 // Function to print the intermediate results stored in ResultMap
 // TODO: delete this function
-void print_intermediate_results(const PrefixMap& result) {
-    std::cout << "Intermediate Results (prefix -> suffix counts):" << std::endl;
-    for (const auto& outer : result) {
-        std::cout << "Prefix: " << outer.first << std::endl;
-        for (const auto& inner : outer.second) {
-            std::cout << "  Suffix: " << inner.first << " -> Count: " << inner.second << std::endl;
-        }
-    }
-}
+// void print_intermediate_results(const PrefixMap& result) {
+//     std::cout << "Intermediate Results (prefix -> suffix counts):" << std::endl;
+//     for (const auto& outer : result) {
+//         std::cout << "Prefix: " << outer.first << std::endl;
+//         for (const auto& inner : outer.second) {
+//             std::cout << "  Suffix: " << inner.first << " -> Count: " << inner.second << std::endl;
+//         }
+//     }
+// }
 
 StartMap process_start(const std::vector<Trajectory>& trajectories) {
     StartMap result;
@@ -87,13 +87,27 @@ StartMap process_start(const std::vector<Trajectory>& trajectories) {
     return result;
 }
 
+// PrefixMap process_test(const Trajectory trajectory, const StartMap start) {
+//     PrefixMap result;
+
+//     for (size_t i = 0; i < trajectory.size() -1; i++) {
+//         const auto& prefix = trajectory[i];
+//         const auto& suffix = trajectory[i+1];
+
+//         if (start.find(suffix) == start.end()) {
+//             result[prefix][suffix] += 1;
+//         }
+//     }
+
+//     return result;
+// }
+
 // Implement the process_prefix function
 PrefixMap process_prefix(const std::vector<Trajectory>& trajectories) {
     PrefixMap result;
     std::mutex result_mutex;
-    
+
     size_t total = 0;
-    size_t count = 0;
 
     // Calculate total comparisons for progress tracking
     for (const auto& trajectory : trajectories) {
@@ -102,43 +116,73 @@ PrefixMap process_prefix(const std::vector<Trajectory>& trajectories) {
 
     auto start_time = std::chrono::steady_clock::now();
 
-    // for each trajectory create a prefix-suffix pair and save it in the result map
+    // Process each trajectory
     #pragma omp parallel for schedule(static, 1) num_threads(8)
-    for (const auto& trajectory : trajectories) {
-        for (size_t i = 0; i < trajectory.size() -1; i++) {
+    for (size_t traj_idx = 0; traj_idx < trajectories.size(); ++traj_idx) {
+        const auto& trajectory = trajectories[traj_idx];
+        PrefixMap local_result;
+
+        for (size_t i = 0; i < trajectory.size() - 1; ++i) {
             const auto& prefix = trajectory[i];
 
             // Check if the suffix directly follows the prefix
             if (is_suffix(trajectory, i, i + 1)) {
-                // Increment the count for the prefix-suffix pair and save it in the result map
                 const auto& suffix = trajectory[i + 1];
 
-                #pragma omp critical
-                {
-                    result_mutex.lock();
-                    result[prefix][suffix] += 1;
-                    result_mutex.unlock();
+                // Update local_result for the prefix-suffix pair
+                auto& suffix_list = local_result[prefix];
+                bool found = false;
+
+                for (auto& count_coord : suffix_list) {
+                    if (count_coord.data[0] == suffix.data[0] && count_coord.data[1] == suffix.data[1]) {
+                        count_coord.data[2] += 1;
+                        found = true;
+                        break;
+                    }
+                }
+
+                if (!found) {
+                    suffix_list.push_back(CountCoordinate{suffix.data[0], suffix.data[1], 1});
+                }
+            }
+        }
+
+        // Optimize local_result memory
+        for (auto& [prefix, suffix_list] : local_result) {
+            suffix_list.shrink_to_fit(); // Release unused capacity
+        }
+
+        // Merge local_result into the global result with a lock
+        std::lock_guard<std::mutex> lock(result_mutex);
+        for (auto& [prefix, suffix_list] : local_result) {
+            auto& global_suffix_list = result[prefix];
+
+            for (auto& local_count_coord : suffix_list) {
+                bool found = false;
+
+                for (auto& global_count_coord : global_suffix_list) {
+                    if (global_count_coord.data[0] == local_count_coord.data[0] &&
+                        global_count_coord.data[1] == local_count_coord.data[1]) {
+                        global_count_coord.data[2] += local_count_coord.data[2];
+                        found = true;
+                        break;
+                    }
+                }
+
+                if (!found) {
+                    global_suffix_list.push_back(local_count_coord);
                 }
             }
 
-            // #pragma omp atomic
-            // count++;
-            
-            // if (count % 100 == 0) { // Update progress every 1000 iterations
-            //     display_progress(count, total, start_time);
-            // }
+            // Optimize global_suffix_list memory
+            global_suffix_list.shrink_to_fit(); // Release unused capacity
         }
     }
 
-    // add laplace noise to the counts
-    // std::random_device rd;
-    // Laplace laplace(rd());
-
-    // for (auto& outer : result) {
-    //     for (auto& inner : outer.second) {
-    //         inner.second += laplace.return_a_random_variable();
-    //     }
-    // }
+    // Optimize final result memory
+    for (auto& [prefix, suffix_list] : result) {
+        suffix_list.shrink_to_fit(); // Release unused capacity
+    }
 
     std::cout << std::endl; // Ensure the progress bar ends on a new line
     return result;

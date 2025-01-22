@@ -18,6 +18,10 @@ struct Coordinate {
     }
 };
 
+struct CountCoordinate {
+    double data[3];
+};
+
 // Custom hash function for Coordinate
 namespace std {
     template <>
@@ -35,7 +39,7 @@ std::ostream& operator<<(std::ostream& os, const Coordinate& coord);
 
 // Define Trajectory as a vector of vectors of floats
 using Trajectory = std::vector<Coordinate>;
-using PrefixMap = std::unordered_map<Coordinate, std::unordered_map<Coordinate, double>>;
+using PrefixMap = std::unordered_map<Coordinate, std::vector<CountCoordinate>>;
 using StartMap = std::unordered_map<Coordinate, double>;
 
 // Function to process start coordinates
@@ -43,5 +47,7 @@ StartMap process_start(const std::vector<Trajectory>& trajectories);
 
 // Function to process prefixes
 PrefixMap process_prefix(const std::vector<Trajectory>& trajectories);
+
+PrefixMap process_test(const Trajectory trajec, const StartMap start);
 
 #endif // MAIN_H
