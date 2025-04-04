@@ -4,3 +4,6 @@ datasets
 build/
 **.so
 src/ppme.cpp
+.idea/
+.venv/
+*/berlin_GTFS/

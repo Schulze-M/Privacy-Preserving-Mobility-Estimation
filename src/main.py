@@ -12,7 +12,7 @@ from utils import validate_coordinates, test_cpp_results
 
 # Constants
 DATA_FOLDER = '../datasets/'
-DATA_CITY_NAME = 'Xian/'
+DATA_CITY_NAME = ''
 
 def load_data() -> trie:
     '''
@@ -35,34 +35,36 @@ def load_data() -> trie:
 
     # Add the parser arguments
     parser.add_argument('traject_file', type=str, help='The name of the trajectory file')
-    parser.add_argument('-a', '--attr_file', type=str, help='The name of the attribute file', default='attrs_Xian.pkl')
+    # parser.add_argument('-a', '--attr_file', type=str, help='The name of the attribute file', default='paths.pkl')
     parser.add_argument('-t', '--test', type=bool, help='Test the results of the C++ implementation', default=False)
 
     # parse the arguments
     args = parser.parse_args()
 
     # create the path to the data files
-    attr_path = os.path.join(DATA_FOLDER, DATA_CITY_NAME, args.attr_file)
+    # attr_path = os.path.join(DATA_FOLDER, DATA_CITY_NAME, args.attr_file)
     trajs_path = os.path.join(DATA_FOLDER, DATA_CITY_NAME, args.traject_file)
 
     # Load the attributes
-    with open(attr_path, 'rb') as file:
-        attrs = pickle.load(file)
+    # with open(attr_path, 'rb') as file:
+    #     attrs = pickle.load(file)
     
     # load the trajectories
     with open(trajs_path, 'rb') as file:
         trajs = pickle.load(file)
 
     # validate the coordinates -> should be (latitude, longitude)
-    is_normal_coords = validate_coordinates(trajs[0][0][0], trajs[0][0][1])
+    # is_normal_coords = validate_coordinates(trajs[0][0][0], trajs[0][0][1])
 
     # reverse the order of the trajectories for each list in the list, if the coordinates are not normal
-    if not is_normal_coords:
-        trajs = [np.array([[coord[1], coord[0]] for coord in array]) for array in trajs]
+    # if not is_normal_coords:
+    #     trajs = [np.array([[coord[1], coord[0]] for coord in array]) for array in trajs]
 
     # create the trie
-    start, prefix = ppme.process_prefix_py(trajs[:500_000])
-    print(len(prefix))
+    print(len(trajs))
+    start, prefix = ppme.process_prefix_py(trajs)
+    print(prefix)
+    print(len(start))
     
     # test the results
     if args.test:

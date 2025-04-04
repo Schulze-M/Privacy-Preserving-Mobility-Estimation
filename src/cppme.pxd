@@ -4,7 +4,7 @@ from libcpp.string cimport string
 from libcpp cimport bool
 
 # Declarations
-ctypedef vector[vector[float]] Trajectory
+ctypedef vector[vector[string]] Trajectory
 ctypedef unordered_map[Trajectory, int] SuffixMap
 ctypedef unordered_map[Trajectory, SuffixMap] ResultMap
 

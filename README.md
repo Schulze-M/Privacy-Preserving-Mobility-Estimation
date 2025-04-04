@@ -6,3 +6,9 @@ Code base for my master thesis
 cd src
 python3 setup.py build_ext --inplace
 ```
+
+# Run the simulation
+````
+cd berlin_GTFS
+python3 simulation.py
+````

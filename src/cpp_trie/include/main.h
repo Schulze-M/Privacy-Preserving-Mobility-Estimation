@@ -4,43 +4,42 @@
 
 #include <vector>
 #include <unordered_map>
+#include <string>
 #include <vector>
 #include <array>
 #include <ostream>
 
 // Wrapper for fixed-size float array
-struct Coordinate {
-    double data[2];
+struct Station {
+    std::string data;
 
-    // Equality operator for use in unordered_map
-    bool operator==(const Coordinate& other) const {
-        return data[0] == other.data[0] && data[1] == other.data[1];
+    bool operator==(const Station& other) const {
+        return data == other.data; 
     }
 };
 
-struct CountCoordinate {
-    double data[3];
+struct CountStation {
+    std::string suffix;
+    double count;
 };
 
 // Custom hash function for Coordinate
 namespace std {
     template <>
-    struct hash<Coordinate> {
-        std::size_t operator()(const Coordinate& coord) const {
-            std::size_t h1 = std::hash<float>{}(coord.data[0]);
-            std::size_t h2 = std::hash<float>{}(coord.data[1]);
-            return h1 ^ (h2 << 1);
+    struct hash<Station> {
+        std::size_t operator()(const Station& coord) const {
+            return std::hash<std::string>()(coord.data);
         }
     };
 }
 
 // Überladung des <<-Operators für Coordinate
-std::ostream& operator<<(std::ostream& os, const Coordinate& coord);
+std::ostream& operator<<(std::ostream& os, const Station& coord);
 
 // Define Trajectory as a vector of vectors of floats
-using Trajectory = std::vector<Coordinate>;
-using PrefixMap = std::unordered_map<Coordinate, std::vector<CountCoordinate>>;
-using StartMap = std::unordered_map<Coordinate, double>;
+using Trajectory = std::vector<Station>;
+using PrefixMap = std::unordered_map<Station, std::vector<CountStation>>;
+using StartMap = std::unordered_map<Station, double>;
 
 // Function to process start coordinates
 StartMap process_start(const std::vector<Trajectory>& trajectories);

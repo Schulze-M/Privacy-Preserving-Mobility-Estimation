@@ -20,57 +20,43 @@ from libcpp.set cimport set
 # Import C++ header file
 cdef extern from "./cpp_trie/include/main.h":
     # Declare C++ function and types for Cython
-    cdef cppclass Coordinate:
-        double data[2]
+    cdef cppclass Station:
+        string data
 
-    cdef cppclass CountCoordinate:
-        double data[3]
+    cdef cppclass CountStation:
+        string suffix
+        double count
 
-    ctypedef vector[Coordinate] Trajectory
-    ctypedef unordered_map[Coordinate, vector[CountCoordinate]] PrefixMap
-    ctypedef unordered_map[Coordinate, double] StartMap
+    ctypedef vector[Station] Trajectory
+    ctypedef unordered_map[Station, vector[CountStation]] PrefixMap
+    ctypedef unordered_map[Station, double] StartMap
 
     StartMap process_start(const vector[Trajectory]& trajectories)
     PrefixMap process_prefix(const vector[Trajectory]& trajectories)
     PrefixMap process_test(const Trajectory trajec, const StartMap start)
 
-@boundscheck(False)
+# @boundscheck(False)
 # convert NumPy array to a fixed sized C++ array
-cdef Coordinate np_to_coordinate(double[::1] arr) noexcept nogil:
-    cdef Coordinate coord
+cdef Station py_to_Station(object s) noexcept:
+    cdef Station coord
 
-    coord.data[0] = arr[0]
-    coord.data[1] = arr[1]
+    # Encode the Python string to bytes (UTF-8)
+    coord.data = s.encode("utf-8")
     return coord
 
-
 # Convert NumPy arrays to C++ Trajectory
-cdef Trajectory np_to_trajectory(cnp.ndarray[cnp.npy_float64, ndim=2] arr):
+cdef Trajectory np_to_trajectory(cnp.ndarray[object, ndim=1] arr):
     cdef Trajectory traj
-    cdef set[pair[double, double]] seen
-    cdef pair[double, double] rounded_pair
-    cdef double rounded_x, rounded_y
-    cdef Coordinate coord
+    cdef Station coord
     cdef size_t i
 
     # Allocate memory for the Trajectory
     traj.reserve(arr.shape[0])
 
-    # Iterate over the NumPy array
-    # Check if the rounded values are already seen
-    # Convert each NumPy array into a Coordinate and push it into the Trajectory
+    # For each element in the 1D array, create a Station.
     for i in range(arr.shape[0]):
-        coord = np_to_coordinate(arr[i])
-        rounded_x = round(coord.data[0] * 10000) / 10000
-        rounded_y = round(coord.data[1] * 10000) / 10000
-
-        rounded_pair.first = rounded_x
-        rounded_pair.second = rounded_y
-
-        # Check if the rounded values are already seen
-        if seen.find(rounded_pair) == seen.end():
-            traj.push_back(coord)
-            seen.insert(rounded_pair)
+        coord = py_to_Station(arr[i])  # assign the scalar value
+        traj.push_back(coord)
 
     # Shrink the Trajectory to fit the number of elements
     traj.shrink_to_fit()
@@ -80,14 +66,16 @@ cdef Trajectory np_to_trajectory(cnp.ndarray[cnp.npy_float64, ndim=2] arr):
 # Convert Python list of NumPy arrays to C++ vector of Trajectories
 cdef vector[Trajectory] list_to_vector(list py_list):
     cdef vector[Trajectory] trajectories
-    cdef cnp.ndarray[cnp.npy_float64, ndim=2] arr
+    cdef cnp.ndarray[object, ndim=1] arr
 
     # Allocate memory for the vector
     trajectories.reserve(len(py_list))
 
-    for arr in py_list:
+    for item in py_list:
         try:  # Check if the element is a NumPy array
             # Directly convert each NumPy array into a Trajectory
+            # Ensure the array is contiguous and uses object dtype.
+            arr = np.ascontiguousarray(item, dtype=object)
             trajectories.push_back(np_to_trajectory(arr))
         except Exception:
             # Handle the case where the element is not a NumPy array
@@ -101,51 +89,46 @@ cdef vector[Trajectory] list_to_vector(list py_list):
 # Convert C++ StartMap back to Python dictionary
 cdef dict start_map_to_dict(StartMap start_map):
     py_start_map = {}
-    cdef Coordinate key
+    cdef Station key
     cdef double value
-    cdef pair[Coordinate, double] pair
+    cdef pair[Station, double] pair
 
     # Iterate over the StartMap
     for pair in start_map:
         key = pair.first
         value = pair.second
 
-        # Convert the key (Trajectory) to a hashable Python tuple
-        hashable_key = tuple((key.data[0], key.data[1]))
-        py_start_map[hashable_key] = value
+        # key.data is a C++ string; Cython converts it to a Python str automatically.
+        py_start_map[key.data] = value
 
     return py_start_map
 
 # Convert C++ PrefixMap back to Python dictionary
 cdef result_map_to_dict(PrefixMap result):
     py_result = {}
-    cdef Coordinate key, inner_key
-    cdef CountCoordinate coord1, coord2, cnt
-    cdef vector[CountCoordinate] inner_vector
-    cdef pair[Coordinate, vector[CountCoordinate]] outer_pair
-    cdef CountCoordinate inner_pair
+    #cdef Station key
+    cdef CountStation count_coord
+    # cdef vector[CountStation] suffix_list
+    # cdef pair[Station, vector[CountStation]] outer_pair
 
     # Iterate over the PrefixMap
     for outer_pair in result:
         key = outer_pair.first
-        inner_vector = outer_pair.second
+        suffix_list = outer_pair.second
 
-        # Convert the outer key (Trajectory) to a hashable Python tuple
-        hashable_key = tuple((key.data[0], key.data[1]))
+        prefix_str = key.data.decode("utf-8")
 
         py_inner_list = []
+
         # Iterate over the inner map
-        for inner_pair in inner_vector:
-            py_coord_list = []
+        for count_coord in suffix_list:
+            # Extract elements from CountStation's data array
+            # Create a list with the suffix string and count.
+            suffix_str = count_coord.suffix.decode("utf-8")
+            count = count_coord.count
+            py_inner_list.append([suffix_str, count])
 
-            # Extract elements from CountCoordinate's data array
-            py_coord_list.append(float(inner_pair.data[0]))
-            py_coord_list.append(float(inner_pair.data[1]))
-            py_coord_list.append(float(inner_pair.data[2]))
-
-            py_inner_list.append(py_coord_list)
-
-        py_result[hashable_key] = py_inner_list
+        py_result[prefix_str] = py_inner_list
 
     return py_result
 

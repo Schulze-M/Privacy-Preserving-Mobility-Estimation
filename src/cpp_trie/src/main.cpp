@@ -26,7 +26,7 @@ std::ostream& operator<<(std::ostream& os, const Trajectory& trajectory) {
 
 // Überladung des <<-Operators für Coordinate
 // TODO: delete this function
-std::ostream& operator<<(std::ostream& os, const Coordinate& coord) {
+std::ostream& operator<<(std::ostream& os, const Station& coord) {
     os << "(" << coord.data[0] << ", " << coord.data[1] << ")";
     return os;
 }
@@ -134,15 +134,15 @@ PrefixMap process_prefix(const std::vector<Trajectory>& trajectories) {
                 bool found = false;
 
                 for (auto& count_coord : suffix_list) {
-                    if (count_coord.data[0] == suffix.data[0] && count_coord.data[1] == suffix.data[1]) {
-                        count_coord.data[2] += 1;
+                    if (count_coord.suffix == suffix.data) {
+                        count_coord.count += 1;
                         found = true;
                         break;
                     }
                 }
 
                 if (!found) {
-                    suffix_list.push_back(CountCoordinate{suffix.data[0], suffix.data[1], 1});
+                    suffix_list.push_back(CountStation{suffix.data, 1});
                 }
             }
         }
@@ -161,9 +161,8 @@ PrefixMap process_prefix(const std::vector<Trajectory>& trajectories) {
                 bool found = false;
 
                 for (auto& global_count_coord : global_suffix_list) {
-                    if (global_count_coord.data[0] == local_count_coord.data[0] &&
-                        global_count_coord.data[1] == local_count_coord.data[1]) {
-                        global_count_coord.data[2] += local_count_coord.data[2];
+                    if (global_count_coord.suffix == local_count_coord.suffix) {
+                        global_count_coord.count += local_count_coord.count;
                         found = true;
                         break;
                     }
@@ -183,6 +182,26 @@ PrefixMap process_prefix(const std::vector<Trajectory>& trajectories) {
     for (auto& [prefix, suffix_list] : result) {
         suffix_list.shrink_to_fit(); // Release unused capacity
     }
+
+    // ***** ADD LAPALCE NOISE HERE *****
+    // Define epsilon (privacy parameter) and sensitivity for the count query.
+    double epsilon = 1.0;       // Adjust epsilon as needed.
+    double sensitivity = 1.0;   // Typically 1 for count queries.
+    double scale = sensitivity / epsilon;
+
+    // Initialize the Laplace noise generator (using a fixed seed or dynamic as required)
+    Laplace laplace_noise(scale, 42);
+
+    // Iterate over all prefix-suffix counts and add Laplace noise.
+    for (auto& [prefix, suffix_list] : result) {
+        for (auto& count_coord : suffix_list) {
+            double noise = laplace_noise.return_a_random_variable(scale);
+            // clip counts at zero. -> negative counts are unlikely, either a station is taken or not.
+            double noisy_count = std::max(0.0, count_coord.count + noise);
+            count_coord.count = noisy_count;
+        }
+    }
+    // ***** END ADD LAPALCE NOISE *****
 
     std::cout << std::endl; // Ensure the progress bar ends on a new line
     return result;
