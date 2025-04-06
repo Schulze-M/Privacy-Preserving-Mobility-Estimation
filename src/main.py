@@ -63,8 +63,9 @@ def load_data() -> trie:
     # create the trie
     print(len(trajs))
     start, prefix = ppme.process_prefix_py(trajs)
-    print(prefix)
-    print(len(start))
+    pprint(prefix, indent=4)
+    print('Prefix length:', len(prefix))
+    print('Start node length:', len(start))
     
     # test the results
     if args.test:

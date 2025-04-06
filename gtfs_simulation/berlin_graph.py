@@ -1,19 +1,24 @@
-import pandas as pd
-import networkx as nx
-import random
 import math
-import matplotlib.pyplot as plt
-import numpy as np
 import pickle
-import contextily as ctx
+import random
 from collections import defaultdict
+
+import contextily as ctx
+import folium
 import matplotlib.cm as cm
+import matplotlib.colors as mcolors
+import matplotlib.pyplot as plt
+import networkx as nx
+import numpy as np
+import pandas as pd
+from matplotlib.colors import LinearSegmentedColormap
 from tqdm import tqdm
 
 #########################################
 # Helper Functions
 #########################################
 DATA_PATH = "../datasets"
+NUM_PATHS = 1_00_000
 
 def haversine(lon1, lat1, lon2, lat2):
     """Calculate the Haversine distance (in kilometers) between two points."""
@@ -150,11 +155,10 @@ def compute_astar_path(G_state, start_state, goal_state):
         return None
 
 # Aggregate ride-edge usage over many random A* path computations.
-num_paths = 1_000_000  # Adjust as needed (e.g., 10 million for final run)
 ride_edge_counts = defaultdict(int)
 
 all_paths = list()
-for i in tqdm(range(num_paths), desc="Computing A* Paths"):
+for i in tqdm(range(NUM_PATHS), desc="Computing A* Paths"):
     start_stop = random.choice(list(berlin_stop_ids))
     end_stop = random.choice(list(berlin_stop_ids))
     while end_stop == start_stop:
@@ -196,6 +200,12 @@ print(f"Saved {len(all_paths)} paths to paths.pkl")
 #########################################
 # 6. Plot Heatmap of the Base Network
 #########################################
+mean_lat = berlin_stops['stop_lat'].astype(float).mean()
+mean_lon = berlin_stops['stop_lon'].astype(float).mean()
+
+# Create a Folium Map centered on Berlin with a high-quality base map (e.g., CartoDB positron)
+m = folium.Map(location=[mean_lat, mean_lon], zoom_start=12, tiles='CartoDB Voyager', control_scale=True)
+
 G_base = nx.Graph()
 
 # Add all filtered stops as nodes with positions.
@@ -218,11 +228,18 @@ if isolated_nodes:
 
 # Prepare visualization: color and width based on usage.
 edges = list(G_base.edges())
-
 counts = np.array([G_base[u][v].get("count", 0) for u, v in edges])
 norm_counts = counts / counts.max() if counts.max() > 0 else counts
 
-cmap = plt.get_cmap('coolwarm')
+# Custom colormap from dark orange to deep red
+colors = [
+    "#fd8d3c",  # light orange
+    "#f16913",  # medium orange
+    "#e6550d",  # dark orange
+    "#e31a1c",  # strong red
+    "#99000d"   # deep red
+]
+cmap = LinearSegmentedColormap.from_list("orange_red", colors)
 edge_colors = [cmap(norm) for norm in norm_counts]
 min_width, max_width = 0.5, 5
 edge_widths = min_width + (max_width - min_width) * norm_counts
@@ -241,4 +258,36 @@ sm.set_array([])
 cbar = plt.colorbar(sm, ax=ax)
 cbar.set_label("Usage (Number of Paths)")
 plt.savefig("heatmap.pdf", format="pdf")
+plt.show()
+
+# Add each edge from G_base as a polyline on the interactive map
+# (Convert coordinates from (lon, lat) to (lat, lon) for Folium)
+# Pre-compute maximum usage to scale weights
+max_usage = max([d.get("count", 1) for _, _, d in G_base.edges(data=True)])
+
+for (s1, s2, data) in G_base.edges(data=True):
+    # Get coordinates and swap to (lat, lon)
+    lat1, lon1 = stops_dict[s1][1], stops_dict[s1][0]
+    lat2, lon2 = stops_dict[s2][1], stops_dict[s2][0]
+    
+    usage = data.get("count", 1)
+    # Scale the line weight based on usage (optional customization)
+    weight = 2 + (usage / max_usage) * 4
+
+    # Compute normalized usage and get the corresponding color from "OrRd"
+    norm_usage = usage / max_usage
+    rgba_color = cmap(norm_usage)
+    hex_color = mcolors.to_hex(rgba_color)
+    
+    folium.PolyLine(
+        locations=[(lat1, lon1), (lat2, lon2)],
+        weight=weight,
+        color=hex_color,
+        opacity=0.85
+    ).add_to(m)
+
+# Save the interactive map as an HTML file
+m.save("index.html")
+print("Interactive heatmap saved as index.html")
+
 plt.show()
