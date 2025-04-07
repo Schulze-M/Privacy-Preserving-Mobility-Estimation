@@ -62,10 +62,17 @@ def load_data() -> trie:
 
     # create the trie
     print(len(trajs))
-    start, prefix = ppme.process_prefix_py(trajs)
-    pprint(prefix, indent=4)
+    start, prefix, triplet = ppme.process_prefix_py(trajs)
+    # pprint(prefix, indent=4)
     print('Prefix length:', len(prefix))
     print('Start node length:', len(start))
+    print('Triplet length:', len(triplet))
+
+    with open("triplets.txt", "a") as f:
+        for triplet, cnt in triplet.items():
+            f.write(f"{triplet}: {cnt}\n")
+
+    # pprint(triplet, indent=4)
     
     # test the results
     if args.test:

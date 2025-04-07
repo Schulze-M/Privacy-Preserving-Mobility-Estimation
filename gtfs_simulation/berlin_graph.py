@@ -18,7 +18,7 @@ from tqdm import tqdm
 # Helper Functions
 #########################################
 DATA_PATH = "../datasets"
-NUM_PATHS = 1_000_000
+NUM_PATHS = 10_000_000
 
 def haversine(lon1, lat1, lon2, lat2):
     """Calculate the Haversine distance (in kilometers) between two points."""

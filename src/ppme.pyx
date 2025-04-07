@@ -8,6 +8,7 @@ import time
 
 cimport numpy as cnp
 from cython cimport boundscheck
+from cpython.unicode cimport PyUnicode_FromString
 from libc.math cimport round
 from libcpp.vector cimport vector
 from libcpp.unordered_map cimport unordered_map
@@ -27,21 +28,35 @@ cdef extern from "./cpp_trie/include/main.h":
         string suffix
         double count
 
+    cdef cppclass Triplet:
+        string first
+        string second
+        string third
+
     ctypedef vector[Station] Trajectory
     ctypedef unordered_map[Station, vector[CountStation]] PrefixMap
     ctypedef unordered_map[Station, double] StartMap
+    ctypedef unordered_map[Triplet, double] TripletMap
 
     StartMap process_start(const vector[Trajectory]& trajectories)
     PrefixMap process_prefix(const vector[Trajectory]& trajectories)
+    TripletMap process_triplets(const vector[Trajectory]& trajectories)
     PrefixMap process_test(const Trajectory trajec, const StartMap start)
 
 # @boundscheck(False)
 # convert NumPy array to a fixed sized C++ array
 cdef Station py_to_Station(object s) noexcept:
     cdef Station coord
-
-    # Encode the Python string to bytes (UTF-8)
-    coord.data = s.encode("utf-8")
+    if s is None:
+        raise ValueError("Found None value in trajectory; station names must be valid strings.")
+    if not isinstance(s, str):
+        raise ValueError(f"Expected a string for station name, got {type(s)} instead.")
+    
+    cdef bytes encoded = s.encode("utf-8")
+    if not encoded:
+        raise ValueError("Empty station name encountered.")
+    
+    coord.data = encoded
     return coord
 
 # Convert NumPy arrays to C++ Trajectory
@@ -106,10 +121,7 @@ cdef dict start_map_to_dict(StartMap start_map):
 # Convert C++ PrefixMap back to Python dictionary
 cdef result_map_to_dict(PrefixMap result):
     py_result = {}
-    #cdef Station key
     cdef CountStation count_coord
-    # cdef vector[CountStation] suffix_list
-    # cdef pair[Station, vector[CountStation]] outer_pair
 
     # Iterate over the PrefixMap
     for outer_pair in result:
@@ -131,6 +143,33 @@ cdef result_map_to_dict(PrefixMap result):
         py_result[prefix_str] = py_inner_list
 
     return py_result
+
+cdef dict triplet_map_to_dict(TripletMap triplet_map):
+    py_triplet_map = {}
+    cdef Triplet key
+    cdef double value
+    cdef pair[Triplet, double] pair
+
+    # Iterate over the TripletMap
+    for pair in triplet_map:
+        key = pair.first
+        value = pair.second
+
+        first_str = (<string>key.first.data).decode()
+        second_str = (<string>key.second.data).decode()
+        third_str = (<string>key.third.data).decode()
+
+        # Use Python strings as keys in the dictionary
+        py_triplet_map[(first_str, second_str, third_str)] = value
+
+    # TODO - Remove this test
+    test = list()
+    for k, v in py_triplet_map.items():
+        if v < 100.0:
+            test.append(k)
+    print(f"Triplet map size: {len(test)}")
+
+    return py_triplet_map
 
 # Main function to process prefixes
 def process_prefix_py(list py_trajectories):
@@ -155,6 +194,14 @@ def process_prefix_py(list py_trajectories):
     print("Done processing prefixes")
     print(f"Time taken to compute: {(end - start) / 60} minutes\n")
 
+    # Process triplet map
+    start = time.time()
+    print("Begin processing triplet map...")
+    cdef TripletMap triplet_map = process_triplets(trajectories)
+    end = time.time()
+    print("Done processing triplet map")
+    print(f"Time taken to compute: {(end - start) / 60} minutes\n")
+
     print("Converting StartMap to Python dictionary...")
     start = time.time()
     py_start_map = start_map_to_dict(start_map)
@@ -169,4 +216,13 @@ def process_prefix_py(list py_trajectories):
     print("Done converting to Python dictionary")
     print(f"Time taken to convert to Python object: {(end - start) / 60} minutes\n")
 
-    return py_start_map, py_prefix_map
+    print("Converting TripletMap to Python dictionary...")
+    start = time.time()
+    py_triplet_map = triplet_map_to_dict(triplet_map)
+    end = time.time()
+    print("Done converting to Python dictionary")
+    print(f"Time taken to convert to Python object: {(end - start) / 60} minutes\n")
+    print("Done processing all maps")
+    print("Returning results...\n")
+
+    return py_start_map, py_prefix_map, py_triplet_map

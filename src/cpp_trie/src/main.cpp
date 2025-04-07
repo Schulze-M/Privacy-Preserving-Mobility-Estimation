@@ -1,6 +1,7 @@
 // trajectory.cpp
 #include "main.h"
 #include "laplace.h"
+#include "gaussian.h"
 #include <unordered_map>
 #include <vector>
 #include <algorithm>
@@ -27,7 +28,7 @@ std::ostream& operator<<(std::ostream& os, const Trajectory& trajectory) {
 // Überladung des <<-Operators für Coordinate
 // TODO: delete this function
 std::ostream& operator<<(std::ostream& os, const Station& coord) {
-    os << "(" << coord.data[0] << ", " << coord.data[1] << ")";
+    os << "(" << coord.data << ")";
     return os;
 }
 
@@ -86,21 +87,6 @@ StartMap process_start(const std::vector<Trajectory>& trajectories) {
 
     return result;
 }
-
-// PrefixMap process_test(const Trajectory trajectory, const StartMap start) {
-//     PrefixMap result;
-
-//     for (size_t i = 0; i < trajectory.size() -1; i++) {
-//         const auto& prefix = trajectory[i];
-//         const auto& suffix = trajectory[i+1];
-
-//         if (start.find(suffix) == start.end()) {
-//             result[prefix][suffix] += 1;
-//         }
-//     }
-
-//     return result;
-// }
 
 // Implement the process_prefix function
 PrefixMap process_prefix(const std::vector<Trajectory>& trajectories) {
@@ -205,4 +191,64 @@ PrefixMap process_prefix(const std::vector<Trajectory>& trajectories) {
 
     std::cout << std::endl; // Ensure the progress bar ends on a new line
     return result;
+}
+
+// Function to process triplets
+TripletMap process_triplets(const std::vector<Trajectory>& trajectories) {
+    TripletMap result;
+    std::mutex result_mutex;
+
+    // Process each triplet
+    #pragma omp parallel for schedule(static, 1) num_threads(8)
+    for (size_t traj_idx = 0; traj_idx < trajectories.size(); ++traj_idx) {
+        const auto& trajectory = trajectories[traj_idx];
+        TripletMap local_counts;
+
+        // Skip trajectories that have less than three stations.
+        if (trajectory.size() < 3) {
+            std::cerr << "Trajectory " << traj_idx << " has less than 3 stations. Skipping...\n";
+            continue;
+        }
+
+        // Generate triplets only if trajectory has at least 3 stations.
+        for (size_t i = 0; i < trajectory.size() - 2; ++i) {
+            const auto& s1 = trajectory[i];
+            const auto& s2 = trajectory[i + 1];
+            const auto& s3 = trajectory[i + 2];
+
+            if (s1.data.empty() || s2.data.empty() || s3.data.empty()) {
+                std::cerr << "Empty station data in triplet: "
+                          << "[" << s1.data << " | " << s2.data << " | " << s3.data << "]\n";
+                continue;
+            }
+
+            Triplet t{s1, s2, s3};
+            local_counts[t] += 1.0;
+        }
+
+        // Merge local counts into the global triplet_counts map.
+        {
+            std::lock_guard<std::mutex> lock(result_mutex);
+            for (const auto& entry : local_counts) {
+                result[entry.first] += entry.second;
+            }
+        }
+    }
+
+    double epsilon = 1.0;       // Adjust epsilon as needed.
+    double sensitivity = 1.0;   // Typically 1 for count queries.
+    double delta = 1e-5;   // Adjust delta as needed.
+
+    Gaussian gaussian_noise(sensitivity, epsilon, delta, 1337);
+    // Iterate over all triplet counts and add Gaussian noise.
+    for (auto& entry : result) {
+        double noise = gaussian_noise.sample();
+        entry.second += noise;
+        if (entry.second < 0.0) {
+            entry.second = 0.0;
+        }
+    }
+
+    return result;
+
 }
