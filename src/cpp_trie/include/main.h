@@ -77,4 +77,7 @@ TripletMap process_triplets(const std::vector<Trajectory>& trajectories);
 
 PrefixMap process_test(const Trajectory trajec, const StartMap start);
 
+// Function to get k top triplets
+TripletMap select_top_k_triplets(const TripletMap& triplet_counts);
+
 #endif // MAIN_H

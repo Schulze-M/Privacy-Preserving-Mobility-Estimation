@@ -206,7 +206,6 @@ TripletMap process_triplets(const std::vector<Trajectory>& trajectories) {
 
         // Skip trajectories that have less than three stations.
         if (trajectory.size() < 3) {
-            std::cerr << "Trajectory " << traj_idx << " has less than 3 stations. Skipping...\n";
             continue;
         }
 
@@ -237,7 +236,7 @@ TripletMap process_triplets(const std::vector<Trajectory>& trajectories) {
 
     double epsilon = 1.0;       // Adjust epsilon as needed.
     double sensitivity = 1.0;   // Typically 1 for count queries.
-    double delta = 1e-5;   // Adjust delta as needed.
+    double delta = 1e-8;   // Adjust delta as needed.
 
     Gaussian gaussian_noise(sensitivity, epsilon, delta, 1337);
     // Iterate over all triplet counts and add Gaussian noise.
@@ -249,6 +248,30 @@ TripletMap process_triplets(const std::vector<Trajectory>& trajectories) {
         }
     }
 
-    return result;
+    TripletMap k_selected = select_top_k_triplets(result); // Select top K triplets
 
+    return k_selected;
+}
+
+// Function to select top K triplets based on their counts
+TripletMap select_top_k_triplets(const TripletMap& triplet_counts) {
+    // Get random k, between size of map and size^2
+    size_t k = rand() % triplet_counts.size() +1; // Random number between 1 and map size
+
+    std::cout << "Selected k: " << k << std::endl;
+    
+    // Create a vector of pairs from the map
+    std::vector<std::pair<Triplet, double>> triplet_vector(triplet_counts.begin(), triplet_counts.end());
+
+    // Sort the vector based on counts in descending order
+    std::sort(triplet_vector.begin(), triplet_vector.end(),
+              [](const auto& a, const auto& b) { return a.second > b.second; });
+
+    // Select the top K triplets
+    TripletMap top_k_triplets;
+    for (size_t i = 0; i < k && i < triplet_vector.size(); ++i) {
+        top_k_triplets[triplet_vector[i].first] = triplet_vector[i].second;
+    }
+
+    return top_k_triplets;
 }
