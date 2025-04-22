@@ -199,30 +199,14 @@ def process_prefix_py(list py_trajectories):
     print("Begin processing triplet map...")
     cdef TripletMap triplet_map = process_triplets(trajectories)
     end = time.time()
-    print("Done processing triplet map")
-    print(f"Time taken to compute: {(end - start) / 60} minutes\n")
-
-    print("Converting StartMap to Python dictionary...")
     start = time.time()
     py_start_map = start_map_to_dict(start_map)
     end = time.time()
-    print("Done converting to Python dictionary")
-    print(f"Time taken to convert to Python object: {end - start} seconds\n")
-
-    print("Converting PrefixMap to Python dictionary...")
     start = time.time()
     py_prefix_map = result_map_to_dict(result)
     end = time.time()
-    print("Done converting to Python dictionary")
-    print(f"Time taken to convert to Python object: {(end - start) / 60} minutes\n")
-
-    print("Converting TripletMap to Python dictionary...")
     start = time.time()
     py_triplet_map = triplet_map_to_dict(triplet_map)
     end = time.time()
-    print("Done converting to Python dictionary")
-    print(f"Time taken to convert to Python object: {(end - start) / 60} minutes\n")
-    print("Done processing all maps")
-    print("Returning results...\n")
 
     return py_start_map, py_prefix_map, py_triplet_map

@@ -2,6 +2,7 @@
 #include "main.h"
 #include "laplace.h"
 #include "gaussian.h"
+#include "trie.h"
 #include <unordered_map>
 #include <vector>
 #include <algorithm>
@@ -65,18 +66,6 @@ void print_trajectories(const std::vector<Trajectory>& trajectories) {
     std::cout << "End of Input Trajectories" << std::endl;
 }
 
-// Function to print the intermediate results stored in ResultMap
-// TODO: delete this function
-// void print_intermediate_results(const PrefixMap& result) {
-//     std::cout << "Intermediate Results (prefix -> suffix counts):" << std::endl;
-//     for (const auto& outer : result) {
-//         std::cout << "Prefix: " << outer.first << std::endl;
-//         for (const auto& inner : outer.second) {
-//             std::cout << "  Suffix: " << inner.first << " -> Count: " << inner.second << std::endl;
-//         }
-//     }
-// }
-
 StartMap process_start(const std::vector<Trajectory>& trajectories) {
     StartMap result;
     
@@ -99,8 +88,6 @@ PrefixMap process_prefix(const std::vector<Trajectory>& trajectories) {
     for (const auto& trajectory : trajectories) {
         total += trajectory.size() - 1; // Each pair can only have one valid suffix in its trajectory
     }
-
-    auto start_time = std::chrono::steady_clock::now();
 
     // Process each trajectory
     #pragma omp parallel for schedule(static, 1) num_threads(8)
@@ -238,17 +225,35 @@ TripletMap process_triplets(const std::vector<Trajectory>& trajectories) {
     double sensitivity = 1.0;   // Typically 1 for count queries.
     double delta = 1e-8;   // Adjust delta as needed.
 
-    Gaussian gaussian_noise(sensitivity, epsilon, delta, 1337);
-    // Iterate over all triplet counts and add Gaussian noise.
-    for (auto& entry : result) {
-        double noise = gaussian_noise.sample();
-        entry.second += noise;
-        if (entry.second < 0.0) {
-            entry.second = 0.0;
-        }
-    }
+    double goal_f1 = 0.85;
+    double f1 = 0.0;
+    TripletMap k_selected;
 
-    TripletMap k_selected = select_top_k_triplets(result); // Select top K triplets
+    while (f1 <= goal_f1)
+    {
+        Gaussian gaussian_noise(sensitivity, epsilon, delta, 1337);
+        // Iterate over all triplet counts and add Gaussian noise.
+        for (auto& entry : result) {
+            double noise = gaussian_noise.sample();
+            entry.second += noise;
+            if (entry.second < 0.0) {
+                entry.second = 0.0;
+            }
+        }
+
+        k_selected = select_top_k_triplets(result); // Select top K triplets
+
+        // Create a trie
+        Trie trie;
+        for (const auto& entry : k_selected) {
+            trie.insert(entry.first, entry.second);
+        }
+        // trie.print(); // Print the trie
+
+        f1 = trie.calculateF1Score(trajectories);
+        std::cout << "F1-Score of the trie: " << f1 << std::endl;
+    }
+    
 
     return k_selected;
 }

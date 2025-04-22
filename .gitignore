@@ -7,3 +7,5 @@ src/ppme.cpp
 .idea/
 .venv/
 */berlin_GTFS/
+**.html
+triplets.txt

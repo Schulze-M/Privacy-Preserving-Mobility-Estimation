@@ -4,7 +4,6 @@ import pickle
 from pprint import pprint
 
 import numpy as np
-from tqdm import tqdm
 import ppme
 
 from datacstructure.trie import PrefixTree as trie
@@ -35,44 +34,34 @@ def load_data() -> trie:
 
     # Add the parser arguments
     parser.add_argument('traject_file', type=str, help='The name of the trajectory file')
-    # parser.add_argument('-a', '--attr_file', type=str, help='The name of the attribute file', default='paths.pkl')
     parser.add_argument('-t', '--test', type=bool, help='Test the results of the C++ implementation', default=False)
 
     # parse the arguments
     args = parser.parse_args()
 
     # create the path to the data files
-    # attr_path = os.path.join(DATA_FOLDER, DATA_CITY_NAME, args.attr_file)
     trajs_path = os.path.join(DATA_FOLDER, DATA_CITY_NAME, args.traject_file)
-
-    # Load the attributes
-    # with open(attr_path, 'rb') as file:
-    #     attrs = pickle.load(file)
     
     # load the trajectories
     with open(trajs_path, 'rb') as file:
         trajs = pickle.load(file)
 
     # validate the coordinates -> should be (latitude, longitude)
-    # is_normal_coords = validate_coordinates(trajs[0][0][0], trajs[0][0][1])
+    # is_normal_coords = validate_coordinates(trajs[0][1], trajs[0][2])
 
-    # reverse the order of the trajectories for each list in the list, if the coordinates are not normal
+    # # reverse the order of the trajectories for each list in the list, if the coordinates are not normal
     # if not is_normal_coords:
-    #     trajs = [np.array([[coord[1], coord[0]] for coord in array]) for array in trajs]
+    #     trajs = [np.array([[coord[0], coord[2], coord[1]] for coord in array]) for array in trajs]
 
     # create the trie
     print(len(trajs))
     start, prefix, triplet = ppme.process_prefix_py(trajs)
-    # pprint(prefix, indent=4)
-    print('Prefix length:', len(prefix))
-    print('Start node length:', len(start))
-    print('Triplet length:', len(triplet))
+    # pprint(triplet, indent=4)
 
-    with open("triplets.txt", "a") as f:
+    with open("triplets.txt", "w") as f:
         for triplet, cnt in triplet.items():
             f.write(f"{triplet}: {cnt}\n")
 
-    # pprint(triplet, indent=4)
     
     # test the results
     if args.test:
