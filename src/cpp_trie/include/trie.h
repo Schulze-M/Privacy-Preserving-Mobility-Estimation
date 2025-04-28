@@ -208,7 +208,7 @@ public:
                   << totalPossibleTransitions << " possible transitions, "
                   << escapingEdges << " escaping edges." << std::endl;
 
-        double precision = 1.0 - static_cast<double>(escapingEdges) / totalPossibleTransitions;
+        double precision = static_cast<double>(escapingEdges) / totalPossibleTransitions;
         return precision;
     }
 

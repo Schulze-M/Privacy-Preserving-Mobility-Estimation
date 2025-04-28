@@ -55,17 +55,19 @@ def load_data() -> trie:
 
     # create the trie
     print(len(trajs))
-    start, prefix, triplet = ppme.process_prefix_py(trajs)
+    triplet = ppme.process_prefix_py(trajs)
     # pprint(triplet, indent=4)
 
-    with open("triplets.txt", "w") as f:
+    print(triplet)
+
+    with open("triplets_fit.txt", "w") as f:
         for triplet, cnt in triplet.items():
             f.write(f"{triplet}: {cnt}\n")
 
     
     # test the results
-    if args.test:
-        test_cpp_results(trajs[:100_000], start, prefix)
+    # if args.test:
+    #     test_cpp_results(trajs[:100_000], start, prefix)
 
 
 if __name__ == '__main__':

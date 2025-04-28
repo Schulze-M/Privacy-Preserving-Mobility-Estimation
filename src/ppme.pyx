@@ -40,7 +40,7 @@ cdef extern from "./cpp_trie/include/main.h":
 
     StartMap process_start(const vector[Trajectory]& trajectories)
     PrefixMap process_prefix(const vector[Trajectory]& trajectories)
-    TripletMap process_triplets(const vector[Trajectory]& trajectories)
+    double process_triplets(const vector[Trajectory]& trajectories, double epsilon)
     PrefixMap process_test(const Trajectory trajec, const StartMap start)
 
 # @boundscheck(False)
@@ -180,33 +180,45 @@ def process_prefix_py(list py_trajectories):
     print("Done converting to C++ Trajectories")
     print(f"Time taken to convert: {end - start} seconds\n")
 
-    print("Begin to compute start map...")
-    start = time.time()
-    cdef StartMap start_map = process_start(trajectories)
-    end = time.time()
-    print("Finished computing start map")
-    print(f"Time taken to compute start map: {end - start} seconds\n")
-
-    start = time.time()
-    print("Begin processing prefixes...")
-    cdef PrefixMap result = process_prefix(trajectories)
-    end = time.time()
-    print("Done processing prefixes")
-    print(f"Time taken to compute: {(end - start) / 60} minutes\n")
+    #print("Begin to compute start map...")
+    #start = time.time()
+    #cdef StartMap start_map = process_start(trajectories)
+    #end = time.time()
+    #print("Finished computing start map")
+    #print(f"Time taken to compute start map: {end - start} seconds\n")
+#
+    #start = time.time()
+    #print("Begin processing prefixes...")
+    #cdef PrefixMap result = process_prefix(trajectories)
+    #end = time.time()
+    #print("Done processing prefixes")
+    #print(f"Time taken to compute: {(end - start) / 60} minutes\n")
 
     # Process triplet map
     start = time.time()
     print("Begin processing triplet map...")
-    cdef TripletMap triplet_map = process_triplets(trajectories)
+
+    result_list = []
+    Eps = [0.1, 0.2, 0.5, 0.8, 1.0]
+    for eps in Eps:
+        results = []
+        for i in range(100):
+            # cdef TripletMap triplet_map = process_triplets(trajectories)
+            fit = process_triplets(trajectories, epsilon=eps)
+            results.append(fit)
+        # get mean of results
+        mean = np.mean(results)
+        result_list.append(mean)
+
     end = time.time()
     start = time.time()
-    py_start_map = start_map_to_dict(start_map)
+    #py_start_map = start_map_to_dict(start_map)
     end = time.time()
     start = time.time()
-    py_prefix_map = result_map_to_dict(result)
+    #py_prefix_map = result_map_to_dict(result)
     end = time.time()
     start = time.time()
-    py_triplet_map = triplet_map_to_dict(triplet_map)
+    #py_triplet_map = triplet_map_to_dict(triplet_map)
     end = time.time()
 
-    return py_start_map, py_prefix_map, py_triplet_map
+    return result_list

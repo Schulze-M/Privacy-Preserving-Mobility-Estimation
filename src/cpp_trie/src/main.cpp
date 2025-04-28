@@ -11,6 +11,7 @@
 #include <mutex>
 #include <omp.h>
 #include <chrono>
+#include <random>
 
 // Überladung des <<-Operators für Trajectory
 // TODO: delete this function
@@ -181,7 +182,7 @@ PrefixMap process_prefix(const std::vector<Trajectory>& trajectories) {
 }
 
 // Function to process triplets
-TripletMap process_triplets(const std::vector<Trajectory>& trajectories) {
+double process_triplets(const std::vector<Trajectory>& trajectories, double epsilon) {
     TripletMap result;
     std::mutex result_mutex;
 
@@ -221,12 +222,13 @@ TripletMap process_triplets(const std::vector<Trajectory>& trajectories) {
         }
     }
 
-    double epsilon = 1.0;       // Adjust epsilon as needed.
+    // double epsilon = 0.1;       // Adjust epsilon as needed.
     double sensitivity = 1.0;   // Typically 1 for count queries.
     double delta = 1e-8;   // Adjust delta as needed.
 
-    double goal_f1 = 0.85;
+    double goal_f1 = 0.95;
     double f1 = 0.0;
+    double fit = 0.0;
     TripletMap k_selected;
 
     while (f1 <= goal_f1)
@@ -240,6 +242,8 @@ TripletMap process_triplets(const std::vector<Trajectory>& trajectories) {
                 entry.second = 0.0;
             }
         }
+        
+        std::cout << "Number of Triplets: " << result.size() << std::endl;
 
         k_selected = select_top_k_triplets(result); // Select top K triplets
 
@@ -249,19 +253,31 @@ TripletMap process_triplets(const std::vector<Trajectory>& trajectories) {
             trie.insert(entry.first, entry.second);
         }
         // trie.print(); // Print the trie
-
+        double f1_noise = gaussian_noise.sample(); // TODO noise is not correct at the moment -> always the same value after adding noise
         f1 = trie.calculateF1Score(trajectories);
+        fit = trie.calculateFitness(trajectories);
         std::cout << "F1-Score of the trie: " << f1 << std::endl;
     }
     
 
-    return k_selected;
+    return fit;
 }
 
 // Function to select top K triplets based on their counts
 TripletMap select_top_k_triplets(const TripletMap& triplet_counts) {
-    // Get random k, between size of map and size^2
-    size_t k = rand() % triplet_counts.size() +1; // Random number between 1 and map size
+    // Set up RNG
+    std::random_device rd;                          // non-deterministic seed
+    std::mt19937 gen(rd());                       // random number generator
+    
+    // Compute bounds
+    std::size_t lo = triplet_counts.size(); // Lower bound is the size of the map
+    std::size_t hi = triplet_counts.size() * triplet_counts.size() - 1;
+
+    // Define distribution
+    std::uniform_int_distribution<std::size_t> dist(lo, hi);
+    
+    // Get random k, between size of map and size^2 -1
+    size_t k = dist(gen); // Random number between 1 and map size
 
     std::cout << "Selected k: " << k << std::endl;
     

@@ -73,7 +73,7 @@ StartMap process_start(const std::vector<Trajectory>& trajectories);
 PrefixMap process_prefix(const std::vector<Trajectory>& trajectories);
 
 // Function to process triplets
-TripletMap process_triplets(const std::vector<Trajectory>& trajectories);
+double process_triplets(const std::vector<Trajectory>& trajectories, double epsilon);
 
 PrefixMap process_test(const Trajectory trajec, const StartMap start);
 
