@@ -6,6 +6,6 @@ build/
 src/ppme.cpp
 .idea/
 .venv/
-*/berlin_GTFS/
+*/berlin_gtfs/
 **.html
 triplets.txt
