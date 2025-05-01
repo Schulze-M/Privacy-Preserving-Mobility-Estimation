@@ -25,14 +25,14 @@ struct CountStation {
 
 // Define a struct for a triplet of stations.
 struct Triplet {
-    Station first;
-    Station second;
-    Station third;
-
-    bool operator==(const Triplet& other) const {
-        return (first == other.first) &&
-               (second == other.second) &&
-               (third == other.third);
+    Station s1, s2, s3;
+    bool operator<(Triplet const& o) const noexcept {
+        if (s1.data != o.s1.data) return s1.data < o.s1.data;
+        if (s2.data != o.s2.data) return s2.data < o.s2.data;
+        return s3.data < o.s3.data;
+    }
+    bool operator==(Triplet const& o) const noexcept {
+        return s1 == o.s1 && s2 == o.s2 && s3 == o.s3;
     }
 };
 
@@ -40,7 +40,7 @@ struct Triplet {
 namespace std {
     template <>
     struct hash<Station> {
-        std::size_t operator()(const Station& coord) const {
+        size_t operator()(const Station& coord) const {
             return std::hash<std::string>()(coord.data);
         }
     };
@@ -49,11 +49,17 @@ namespace std {
 // Hash function for Triplet.
 struct TripletHash {
     std::size_t operator()(const Triplet& t) const {
-        std::size_t h1 = std::hash<Station>()(t.first);
-        std::size_t h2 = std::hash<Station>()(t.second);
-        std::size_t h3 = std::hash<Station>()(t.third);
+        std::size_t h1 = std::hash<Station>()(t.s1);
+        std::size_t h2 = std::hash<Station>()(t.s2);
+        std::size_t h3 = std::hash<Station>()(t.s3);
         // Combine the hashes.
         return h1 ^ (h2 << 1) ^ (h3 << 2);
+    }
+};
+
+struct TripletEqual {
+    bool operator()(Triplet const& a, Triplet const& b) const noexcept {
+        return a == b;
     }
 };
 
@@ -72,12 +78,15 @@ StartMap process_start(const std::vector<Trajectory>& trajectories);
 // Function to process prefixes
 PrefixMap process_prefix(const std::vector<Trajectory>& trajectories);
 
+// Generate Triplets
+TripletMap create_triplet_map(const std::vector<Trajectory>& trajectories);
+
 // Function to process triplets
-double process_triplets(const std::vector<Trajectory>& trajectories, double epsilon);
+double process_triplets(TripletMap triplet, double epsilon, const std::vector<Trajectory>& trajectories);
 
 PrefixMap process_test(const Trajectory trajec, const StartMap start);
 
 // Function to get k top triplets
-TripletMap select_top_k_triplets(const TripletMap& triplet_counts);
+TripletMap select_significant_triplets(const TripletMap& triplet_counts, double epsilon);
 
 #endif // MAIN_H

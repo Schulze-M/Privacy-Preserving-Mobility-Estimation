@@ -1,17 +1,19 @@
 // trajectory.cpp
-#include "main.h"
-#include "laplace.h"
 #include "gaussian.h"
+#include "laplace.h"
+#include "main.h"
 #include "trie.h"
-#include <unordered_map>
-#include <vector>
+
 #include <algorithm>
+#include <chrono>
 #include <iostream>
-#include <ostream>
 #include <mutex>
 #include <omp.h>
-#include <chrono>
+#include <ostream>
 #include <random>
+#include <unordered_map>
+#include <unordered_set>
+#include <vector>
 
 // Überladung des <<-Operators für Trajectory
 // TODO: delete this function
@@ -181,46 +183,43 @@ PrefixMap process_prefix(const std::vector<Trajectory>& trajectories) {
     return result;
 }
 
-// Function to process triplets
-double process_triplets(const std::vector<Trajectory>& trajectories, double epsilon) {
+TripletMap create_triplet_map(const std::vector<Trajectory>& trajectories) {
     TripletMap result;
     std::mutex result_mutex;
 
-    // Process each triplet
     #pragma omp parallel for schedule(static, 1) num_threads(8)
-    for (size_t traj_idx = 0; traj_idx < trajectories.size(); ++traj_idx) {
-        const auto& trajectory = trajectories[traj_idx];
-        TripletMap local_counts;
+    for (size_t idx = 0; idx < trajectories.size(); ++idx) {
+        const auto& traj = trajectories[idx];
+        if (traj.size() < 3) continue; // Skip trajectories with less than 3 stations
 
-        // Skip trajectories that have less than three stations.
-        if (trajectory.size() < 3) {
-            continue;
-        }
+        // Create a local set to track seen triplets in this trajectory
+        // ensures that we only count unique triplets in each trajectory
+        std::unordered_set<Triplet, TripletHash, TripletEqual> seen;
 
-        // Generate triplets only if trajectory has at least 3 stations.
-        for (size_t i = 0; i < trajectory.size() - 2; ++i) {
-            const auto& s1 = trajectory[i];
-            const auto& s2 = trajectory[i + 1];
-            const auto& s3 = trajectory[i + 2];
+        // Iterate over the trajectory to find triplets
+        for (size_t i = 0; i + 2 < traj.size(); ++i) {
+            const auto& s1 = traj[i];
+            const auto& s2 = traj[i + 1];
+            const auto& s3 = traj[i + 2];
 
             if (s1.data.empty() || s2.data.empty() || s3.data.empty()) {
-                std::cerr << "Empty station data in triplet: "
-                          << "[" << s1.data << " | " << s2.data << " | " << s3.data << "]\n";
+                std::cerr << "Empty station data in triplet\n";
                 continue;
             }
 
+            // Create a triplet and check if it has been seen before
             Triplet t{s1, s2, s3};
-            local_counts[t] += 1.0;
-        }
-
-        // Merge local counts into the global triplet_counts map.
-        {
-            std::lock_guard<std::mutex> lock(result_mutex);
-            for (const auto& entry : local_counts) {
-                result[entry.first] += entry.second;
+            if (seen.insert(t).second) {
+                std::lock_guard<std::mutex> lk(result_mutex);
+                result[t] += 1.0;
             }
         }
     }
+    return result;
+}
+
+// Function to process triplets
+double process_triplets(TripletMap triplet, double epsilon, const std::vector<Trajectory>& trajectories) {
 
     // double epsilon = 0.1;       // Adjust epsilon as needed.
     double sensitivity = 1.0;   // Typically 1 for count queries.
@@ -228,24 +227,28 @@ double process_triplets(const std::vector<Trajectory>& trajectories, double epsi
 
     double goal_f1 = 0.95;
     double f1 = 0.0;
+    double f1_old = 0.0;
     double fit = 0.0;
     TripletMap k_selected;
 
     while (f1 <= goal_f1)
     {
+        // add laplace noise to the counts
+        std::random_device rd;
+        Laplace laplace(rd());
         Gaussian gaussian_noise(sensitivity, epsilon, delta, 1337);
         // Iterate over all triplet counts and add Gaussian noise.
-        for (auto& entry : result) {
-            double noise = gaussian_noise.sample();
+        for (auto& entry : triplet) {
+            double noise = laplace.return_a_random_variable();
             entry.second += noise;
             if (entry.second < 0.0) {
                 entry.second = 0.0;
             }
         }
         
-        std::cout << "Number of Triplets: " << result.size() << std::endl;
+        // std::cout << "Number of Triplets: " << triplet.size() << std::endl;
 
-        k_selected = select_top_k_triplets(result); // Select top K triplets
+        k_selected = select_significant_triplets(triplet, epsilon); // Select top K triplets
 
         // Create a trie
         Trie trie;
@@ -253,46 +256,38 @@ double process_triplets(const std::vector<Trajectory>& trajectories, double epsi
             trie.insert(entry.first, entry.second);
         }
         // trie.print(); // Print the trie
-        double f1_noise = gaussian_noise.sample(); // TODO noise is not correct at the moment -> always the same value after adding noise
-        f1 = trie.calculateF1Score(trajectories);
+        double f1_noise = laplace.return_a_random_variable(); // TODO noise is not correct at the moment -> always the same value after adding noise
+        f1 = trie.calculateF1(trajectories) + f1_noise;
+        f1_old = trie.calculateF1Score(trajectories) + f1_noise;
         fit = trie.calculateFitness(trajectories);
-        std::cout << "F1-Score of the trie: " << f1 << std::endl;
+        // std::cout << "F1-Score of the trie: " << f1 << std::endl;
     }
     
 
     return fit;
 }
 
-// Function to select top K triplets based on their counts
-TripletMap select_top_k_triplets(const TripletMap& triplet_counts) {
-    // Set up RNG
-    std::random_device rd;                          // non-deterministic seed
-    std::mt19937 gen(rd());                       // random number generator
-    
-    // Compute bounds
-    std::size_t lo = triplet_counts.size(); // Lower bound is the size of the map
-    std::size_t hi = triplet_counts.size() * triplet_counts.size() - 1;
+// Function to filter out all triplets with counts below the std() of the Laplace distribution
+TripletMap select_significant_triplets(
+    const TripletMap& triplet_counts,
+    double epsilon
+) {
+    // Compute std() of the Laplace distribution
+    // sigma = sqrt(2) / epsilon
+    const double sigma = std::sqrt(2.0) / epsilon;
 
-    // Define distribution
-    std::uniform_int_distribution<std::size_t> dist(lo, hi);
-    
-    // Get random k, between size of map and size^2 -1
-    size_t k = dist(gen); // Random number between 1 and map size
-
-    std::cout << "Selected k: " << k << std::endl;
-    
-    // Create a vector of pairs from the map
-    std::vector<std::pair<Triplet, double>> triplet_vector(triplet_counts.begin(), triplet_counts.end());
-
-    // Sort the vector based on counts in descending order
-    std::sort(triplet_vector.begin(), triplet_vector.end(),
-              [](const auto& a, const auto& b) { return a.second > b.second; });
-
-    // Select the top K triplets
-    TripletMap top_k_triplets;
-    for (size_t i = 0; i < k && i < triplet_vector.size(); ++i) {
-        top_k_triplets[triplet_vector[i].first] = triplet_vector[i].second;
+    // Filter triplet counts based on the threshold sigma
+    TripletMap result;
+    for (const auto& [triplet, count] : triplet_counts) {
+        if (count >= sigma) {
+            result[triplet] = count;
+        }
     }
 
-    return top_k_triplets;
+    return result;
 }
+
+// Hallo Esfandiar, bei den Experimenten gab es leider ein Problem mit dem Speichern auf Pythons Seite. Das habe ich jetzt aber lösen können und lasse es laufen. Spätestens Freitag schicke ich Euch die Ergbnisse. 
+// Als Moritz mit mit gestern den Beweis durch gegangen ist hatte ist Ihm noch noch aufgefallen das der Sensitivity Beweis für den F1-Score fehlt. Den Beweis mache cih zu Montag fertig und bespreche den da mit Moritz.
+
+// Schriftlich komme ich sehr gut voran. Es fehlt noch der Beweis, die Evaluation, die Conclusion & Introcution. Ich denke allerdings das es dennoch sehr knapp wird. 

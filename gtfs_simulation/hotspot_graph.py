@@ -18,7 +18,7 @@ from tqdm import tqdm
 # Helper Functions
 #########################################
 DATA_PATH = "../datasets"
-NUM_PATHS = 10_000
+NUM_PATHS = 1_000_000
 
 def haversine(lon1, lat1, lon2, lat2):
     """Calculate the Haversine distance (in kilometers) between two points."""
@@ -65,13 +65,16 @@ trips = trips.merge(routes[['route_id', 'route_short_name']], on="route_id", how
 stop_times = stop_times.merge(trips[['trip_id', 'route_short_name']], on="trip_id", how="left")
 stop_times = stop_times.sort_values(by=["trip_id", "stop_sequence"])
 
+#########################################
+# 2. Build Base Network (Construct "ride" edges based solely on GTFS connections)
+#########################################
 # Build ride-edge info for reachability
-edge_lines = defaultdict(set)
-node_lines = defaultdict(set)
+edge_lines = defaultdict(set) # Maps (stop1, stop2) to the set of lines serving that edge
+node_lines = defaultdict(set) # Maps stop to the set of lines that serve it
 for trip_id, group in tqdm(stop_times.groupby("trip_id"), desc="Processing Trips"):
     group = group.sort_values("stop_sequence")
     stops_in_trip = group['stop_id'].tolist()
-    line = group['route_short_name'].iloc[0]
+    line = group['route_short_name'].iloc[0]  # All stops in this trip share the same line
     for stop in stops_in_trip:
         node_lines[stop].add(line)
     for i in range(len(stops_in_trip) - 1):
@@ -82,7 +85,7 @@ for trip_id, group in tqdm(stop_times.groupby("trip_id"), desc="Processing Trips
 reachable_stop_ids = {s for edge in edge_lines.keys() for s in edge}
 
 #########################################
-# 2. Define Hotspots: ensure only reachable
+# 3. Define Hotspots: ensure only reachable
 #########################################
 # Bounding box for Berlin region
 lat_min, lat_max = 52.3, 52.7
@@ -140,20 +143,20 @@ probabilities = probabilities.flatten()
 #########################################
 # 2. Build Base Network (Construct "ride" edges based solely on GTFS connections)
 #########################################
-edge_lines = defaultdict(set)  # Maps (stop1, stop2) to the set of lines serving that edge
-node_lines = defaultdict(set)  # Maps stop to the set of lines that serve it
+# edge_lines = defaultdict(set)  # Maps (stop1, stop2) to the set of lines serving that edge
+# node_lines = defaultdict(set)  # Maps stop to the set of lines that serve it
 
-# Process each trip (with tqdm progress)
-for trip_id, group in tqdm(list(stop_times.groupby("trip_id")), desc="Processing Trips"):
-    group = group.sort_values("stop_sequence")
-    stops_in_trip = group['stop_id'].tolist()
-    line = group['route_short_name'].iloc[0]  # All stops in this trip share the same line
-    for stop in stops_in_trip:
-        node_lines[stop].add(line)
-    # Only connect in the given (GTFS) direction
-    for i in range(len(stops_in_trip) - 1):
-        s1, s2 = stops_in_trip[i], stops_in_trip[i+1]
-        edge_lines[(s1, s2)].add(line)
+# # Process each trip (with tqdm progress)
+# for trip_id, group in tqdm(list(stop_times.groupby("trip_id")), desc="Processing Trips"):
+#     group = group.sort_values("stop_sequence")
+#     stops_in_trip = group['stop_id'].tolist()
+#     line = group['route_short_name'].iloc[0]  # All stops in this trip share the same line
+#     for stop in stops_in_trip:
+#         node_lines[stop].add(line)
+#     # Only connect in the given (GTFS) direction
+#     for i in range(len(stops_in_trip) - 1):
+#         s1, s2 = stops_in_trip[i], stops_in_trip[i+1]
+#         edge_lines[(s1, s2)].add(line)
 
 #########################################
 # 3. Build the State-Space Graph with Ride-Edges

@@ -29,9 +29,9 @@ cdef extern from "./cpp_trie/include/main.h":
         double count
 
     cdef cppclass Triplet:
-        string first
-        string second
-        string third
+        string s1
+        string s2
+        string s3
 
     ctypedef vector[Station] Trajectory
     ctypedef unordered_map[Station, vector[CountStation]] PrefixMap
@@ -40,7 +40,8 @@ cdef extern from "./cpp_trie/include/main.h":
 
     StartMap process_start(const vector[Trajectory]& trajectories)
     PrefixMap process_prefix(const vector[Trajectory]& trajectories)
-    double process_triplets(const vector[Trajectory]& trajectories, double epsilon)
+    TripletMap create_triplet_map(const vector[Trajectory]& trajectories)
+    double process_triplets(TripletMap triplet, double epsilon, const vector[Trajectory]& trajectories)
     PrefixMap process_test(const Trajectory trajec, const StartMap start)
 
 # @boundscheck(False)
@@ -155,9 +156,9 @@ cdef dict triplet_map_to_dict(TripletMap triplet_map):
         key = pair.first
         value = pair.second
 
-        first_str = (<string>key.first.data).decode()
-        second_str = (<string>key.second.data).decode()
-        third_str = (<string>key.third.data).decode()
+        first_str = (<string>key.s1.data).decode()
+        second_str = (<string>key.s2.data).decode()
+        third_str = (<string>key.s3.data).decode()
 
         # Use Python strings as keys in the dictionary
         py_triplet_map[(first_str, second_str, third_str)] = value
@@ -194,6 +195,13 @@ def process_prefix_py(list py_trajectories):
     #print("Done processing prefixes")
     #print(f"Time taken to compute: {(end - start) / 60} minutes\n")
 
+    # Generate tripletmap
+    start = time.time()
+    cdef TripletMap triplet_map = create_triplet_map(trajectories)
+    end = time.time()
+
+    print(f"Done creating triplet map in {end - start} seconds\n")
+
     # Process triplet map
     start = time.time()
     print("Begin processing triplet map...")
@@ -204,11 +212,16 @@ def process_prefix_py(list py_trajectories):
         results = []
         for i in range(100):
             # cdef TripletMap triplet_map = process_triplets(trajectories)
-            fit = process_triplets(trajectories, epsilon=eps)
+            fit = process_triplets(triplet=triplet_map, epsilon=eps, trajectories=trajectories)
             results.append(fit)
+            print("Done")
         # get mean of results
+        print("Finishes one EPSILON!!!")
         mean = np.mean(results)
-        result_list.append(mean)
+        std = np.std(results)
+
+        # Create a tuple with the results
+        result_list.append((eps, mean, std))
 
     end = time.time()
     start = time.time()

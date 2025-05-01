@@ -86,7 +86,7 @@ public:
 
     // For backwards compatibility: insert a Triplet (3-gram) by converting it to a vector and calling insertTrajectory.
     void insert(const Triplet& triplet, double countValue) {
-        std::vector<Station> sequence = { triplet.first, triplet.second, triplet.third };
+        std::vector<Station> sequence = { triplet.s1, triplet.s2, triplet.s3 };
         insertTrajectory(sequence, countValue);
     }
 
@@ -113,6 +113,69 @@ public:
     // Export the entire Trie as a JSON-formatted string.
     std::string toJson() const {
         return toJsonNode(root);
+    }
+
+    // ============================================================
+    // Neue Methode: calculateF1
+    //
+    // Berechnet den F₁-Score für 3-Gramme wie folgt:
+    //   - trueSet      = alle 3-Gramme, die in den Trajektorien vorkommen
+    //   - predictedSet = alle 3-Gramme, die im Trie mit count > 0 stehen
+    //   - Precision    = |trueSet ∩ predictedSet| / |predictedSet|
+    //   - Recall       = |trueSet ∩ predictedSet| / |trueSet|
+    //   - F1           = 2 * (Precision * Recall) / (Precision + Recall)
+    //
+    // Wird 1 zurückgegeben, wenn sowohl trueSet als auch predictedSet leer sind.
+    // ============================================================
+    double calculateF1(const std::vector<std::vector<Station>>& trajectories) const {
+        using TripletSet = std::unordered_set<Triplet, TripletHash, TripletEqual>;
+
+        // 1) trueSet aus den Trajektorien aufbauen
+        TripletSet trueSet;
+        for (const auto& traj : trajectories) {
+            if (traj.size() < 3) continue;
+            for (size_t i = 0; i + 2 < traj.size(); ++i) {
+                trueSet.insert( Triplet{ traj[i], traj[i+1], traj[i+2] } );
+            }
+        }
+
+        // 2) predictedSet aus dem Trie extrahieren (Tiefe genau 3)
+        TripletSet predictedSet;
+        for (const auto& kv1 : root->children) {
+            Station s1 = kv1.first;
+            TrieNode* n1 = kv1.second;
+            for (const auto& kv2 : n1->children) {
+                Station s2 = kv2.first;
+                TrieNode* n2 = kv2.second;
+                for (const auto& kv3 : n2->children) {
+                    Station s3 = kv3.first;
+                    TrieNode* n3 = kv3.second;
+                    if (n3->count > 0.0) {
+                        predictedSet.insert( Triplet{ s1, s2, s3 } );
+                    }
+                }
+            }
+        }
+
+        const size_t TP = [&](){
+            size_t cnt = 0;
+            for (auto const& t : predictedSet)
+                if (trueSet.count(t)) ++cnt;
+            return cnt;
+        }();
+
+        const size_t P = predictedSet.size();
+        const size_t T = trueSet.size();
+
+        // Sonderfälle
+        if (P == 0 && T == 0) return 1.0;   // keine 3-Gramme total → perfekte Übereinstimmung
+        if (P == 0 || T == 0) return 0.0;   // keine Vorhersagen oder keine echten 3-Gramme
+
+        double precision = static_cast<double>(TP) / P;
+        double recall    = static_cast<double>(TP) / T;
+        return (precision + recall > 0.0)
+             ? 2.0 * (precision * recall) / (precision + recall)
+             : 0.0;
     }
 
     // ============================================================
@@ -204,9 +267,9 @@ public:
         size_t totalPossibleTransitions = totalNodes * S;
         size_t escapingEdges = totalPossibleTransitions - totalObservedTransitions;
 
-        std::cout << totalNodes << " nodes, " << totalObservedTransitions << " observed transitions, "
-                  << totalPossibleTransitions << " possible transitions, "
-                  << escapingEdges << " escaping edges." << std::endl;
+        // std::cout << totalNodes << " nodes, " << totalObservedTransitions << " observed transitions, "
+        //           << totalPossibleTransitions << " possible transitions, "
+        //           << escapingEdges << " escaping edges." << std::endl;
 
         double precision = static_cast<double>(escapingEdges) / totalPossibleTransitions;
         return precision;
@@ -215,7 +278,7 @@ public:
     double calculateF1Score(const std::vector<std::vector<Station>>& trajectories) const {
         double fitness = calculateFitness(trajectories);
         double precision = calculatePrecision(trajectories);
-        std::cout << "Fitness: " << fitness << ", Precision: " << precision << std::endl;
+        // std::cout << "Fitness: " << fitness << ", Precision: " << precision << std::endl;
         if (fitness + precision == 0)
             return 0.0;
         return 2 * ((fitness * precision) / (fitness + precision));
