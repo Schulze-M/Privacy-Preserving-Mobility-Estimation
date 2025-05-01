@@ -44,6 +44,16 @@ cdef extern from "./cpp_trie/include/main.h":
     double process_triplets(TripletMap triplet, double epsilon, const vector[Trajectory]& trajectories)
     PrefixMap process_test(const Trajectory trajec, const StartMap start)
 
+cdef extern from "./cpp_trie/include/trie.h":
+    cdef cppclass TrieNode:
+        double count
+        unordered_map[Station, TrieNode*] children
+
+    cdef cppclass Trie:
+        Trie() except +
+        TrieNode* root
+        void insertTrajectory(const vector[Station]& trajectory, double countValue)
+     
 # @boundscheck(False)
 # convert NumPy array to a fixed sized C++ array
 cdef Station py_to_Station(object s) noexcept:
@@ -102,49 +112,6 @@ cdef vector[Trajectory] list_to_vector(list py_list):
 
     return trajectories
 
-# Convert C++ StartMap back to Python dictionary
-cdef dict start_map_to_dict(StartMap start_map):
-    py_start_map = {}
-    cdef Station key
-    cdef double value
-    cdef pair[Station, double] pair
-
-    # Iterate over the StartMap
-    for pair in start_map:
-        key = pair.first
-        value = pair.second
-
-        # key.data is a C++ string; Cython converts it to a Python str automatically.
-        py_start_map[key.data] = value
-
-    return py_start_map
-
-# Convert C++ PrefixMap back to Python dictionary
-cdef result_map_to_dict(PrefixMap result):
-    py_result = {}
-    cdef CountStation count_coord
-
-    # Iterate over the PrefixMap
-    for outer_pair in result:
-        key = outer_pair.first
-        suffix_list = outer_pair.second
-
-        prefix_str = key.data.decode("utf-8")
-
-        py_inner_list = []
-
-        # Iterate over the inner map
-        for count_coord in suffix_list:
-            # Extract elements from CountStation's data array
-            # Create a list with the suffix string and count.
-            suffix_str = count_coord.suffix.decode("utf-8")
-            count = count_coord.count
-            py_inner_list.append([suffix_str, count])
-
-        py_result[prefix_str] = py_inner_list
-
-    return py_result
-
 cdef dict triplet_map_to_dict(TripletMap triplet_map):
     py_triplet_map = {}
     cdef Triplet key
@@ -181,20 +148,6 @@ def process_prefix_py(list py_trajectories):
     print("Done converting to C++ Trajectories")
     print(f"Time taken to convert: {end - start} seconds\n")
 
-    #print("Begin to compute start map...")
-    #start = time.time()
-    #cdef StartMap start_map = process_start(trajectories)
-    #end = time.time()
-    #print("Finished computing start map")
-    #print(f"Time taken to compute start map: {end - start} seconds\n")
-#
-    #start = time.time()
-    #print("Begin processing prefixes...")
-    #cdef PrefixMap result = process_prefix(trajectories)
-    #end = time.time()
-    #print("Done processing prefixes")
-    #print(f"Time taken to compute: {(end - start) / 60} minutes\n")
-
     # Generate tripletmap
     start = time.time()
     cdef TripletMap triplet_map = create_triplet_map(trajectories)
@@ -210,28 +163,86 @@ def process_prefix_py(list py_trajectories):
     Eps = [0.1, 0.2, 0.5, 0.8, 1.0]
     for eps in Eps:
         results = []
-        for i in range(100):
+        for i in range(10):
             # cdef TripletMap triplet_map = process_triplets(trajectories)
             fit = process_triplets(triplet=triplet_map, epsilon=eps, trajectories=trajectories)
             results.append(fit)
-            print("Done")
+            # print("Done")
         # get mean of results
-        print("Finishes one EPSILON!!!")
+        # print("Finishes one EPSILON!!!")
         mean = np.mean(results)
         std = np.std(results)
+
+        with open("eval.txt", "a") as f:
+            f.write(f"EPSILON: {eps}, mean: {mean}, std: {std}\n")
 
         # Create a tuple with the results
         result_list.append((eps, mean, std))
 
     end = time.time()
-    start = time.time()
-    #py_start_map = start_map_to_dict(start_map)
-    end = time.time()
-    start = time.time()
-    #py_prefix_map = result_map_to_dict(result)
-    end = time.time()
+
+    print(f"Done processing triplet map in {(end - start) / 60} minutes\n")
+
     start = time.time()
     #py_triplet_map = triplet_map_to_dict(triplet_map)
     end = time.time()
 
     return result_list
+
+#cdef object _node_to_py(TrieNode* node) except *:
+#    """
+#    Recursively convert a C++ TrieNode* into a Python dict
+#      { 'count': <float>, 'children': { station_name: <child_dict>, … } }
+#    """
+#    cdef dict py_node = {
+#        'count': node.count,
+#       'children': {}
+#    }
+#    cdef pair[Station, TrieNode*] entry
+#    for entry in node.children:
+#        # unpack
+#        st    = entry.first
+#        child = entry.second
+#        # decode std::string bytes to Python str
+#        name = (<string>st.data).decode('utf-8')
+#        py_node['children'][name] = _node_to_py(child)
+#    return py_node
+#
+#def trie_to_dict(Trie& trie) -> dict:
+#    """
+#    Top-level: run the recursive converter on trie.root
+#    """
+#    if trie.root == NULL:
+#        raise ValueError("Trie has no root")
+#    return _node_to_py(trie.root)
+#
+# def draw_trie(Trie& trie, filename: str = None, view: bool = False):
+#     """
+#     Render a C++ Trie as a Graphviz Digraph.
+#     
+#     - trie: your wrapped C++ Trie instance
+#     - filename: if given, the .gv (or .pdf/.png) file to write & render
+#     - view: whether to open the viewer after rendering
+#     Returns a graphviz.Digraph object.
+#     """
+#     from graphviz import Digraph
+#     # Convert to nested dict
+#     py_root = trie_to_dict(trie)
+#     
+#     dot = Digraph(comment="Trie")
+#     dot.node('root', label=f"root\ncount={py_root['count']:.1f}")
+#     
+#     def _recurse(node: dict, node_id: str):
+#         for station, child in node['children'].items():
+#             # create a unique id per node
+#             child_id = f"{node_id}_{station}"
+#             # Graphviz node label shows station name + its count
+#             dot.node(child_id, label=f"{station}\ncount={child['count']:.1f}")
+#             dot.edge(node_id, child_id)
+#             _recurse(child, child_id)
+#     
+#     _recurse(py_root, 'root')
+#     
+#     if filename is not None:
+#         dot.render(filename, view=view, cleanup=True)
+#     return dot

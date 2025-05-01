@@ -60,9 +60,9 @@ def load_data() -> trie:
 
     print(triplet)
 
-    with open("triplets_fit.txt", "w") as f:
-        for cnt in triplet:
-            f.write(f"{cnt}\n")
+    # with open("triplets_fit.txt", "w") as f:
+    #     for cnt in triplet:
+    #         f.write(f"{cnt}\n")
 
     
     # test the results
