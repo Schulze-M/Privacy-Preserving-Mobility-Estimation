@@ -41,7 +41,7 @@ cdef extern from "./cpp_trie/include/main.h":
     StartMap process_start(const vector[Trajectory]& trajectories)
     PrefixMap process_prefix(const vector[Trajectory]& trajectories)
     TripletMap create_triplet_map(const vector[Trajectory]& trajectories)
-    double process_triplets(TripletMap triplet, double epsilon, const vector[Trajectory]& trajectories)
+    pair[double, double] process_triplets(TripletMap triplet, double epsilon, const vector[Trajectory]& trajectories)
     PrefixMap process_test(const Trajectory trajec, const StartMap start)
 
 cdef extern from "./cpp_trie/include/trie.h":
@@ -157,27 +157,34 @@ def process_prefix_py(list py_trajectories):
 
     # Process triplet map
     start = time.time()
-    print("Begin processing triplet map...")
+    print("Begin Trie generation...")
 
     result_list = []
     Eps = [0.1, 0.2, 0.5, 0.8, 1.0]
     for eps in Eps:
-        results = []
-        for i in range(10):
+        fit = []
+        f1 = []
+        for i in range(100):
             # cdef TripletMap triplet_map = process_triplets(trajectories)
-            fit = process_triplets(triplet=triplet_map, epsilon=eps, trajectories=trajectories)
-            results.append(fit)
+            result = process_triplets(triplet=triplet_map, epsilon=eps, trajectories=trajectories)
+            fit.append(result.first)
+            f1.append(result.second)
             # print("Done")
         # get mean of results
         # print("Finishes one EPSILON!!!")
-        mean = np.mean(results)
-        std = np.std(results)
+        mean = np.mean(fit)
+        mean_f1 = np.mean(f1)
+        # get std of results
+        std = np.std(fit)
+        std_f1 = np.std(f1)
 
-        with open("eval.txt", "a") as f:
+        with open("eval_fit.txt", "a") as f:
             f.write(f"EPSILON: {eps}, mean: {mean}, std: {std}\n")
+        with open("eval_f1.txt", "a") as f:
+            f.write(f"EPSILON: {eps}, mean: {mean_f1}, std: {std_f1}\n")
 
         # Create a tuple with the results
-        result_list.append((eps, mean, std))
+        # result_list.append((eps, mean, std))
 
     end = time.time()
 

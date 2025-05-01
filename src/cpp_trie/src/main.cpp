@@ -219,7 +219,7 @@ TripletMap create_triplet_map(const std::vector<Trajectory>& trajectories) {
 }
 
 // Function to process triplets
-double process_triplets(TripletMap triplet, double epsilon, const std::vector<Trajectory>& trajectories) {
+std::pair<double, double> process_triplets(TripletMap triplet, double epsilon, const std::vector<Trajectory>& trajectories) {
 
     // double epsilon = 0.1;       // Adjust epsilon as needed.
     double sensitivity = 1.0;   // Typically 1 for count queries.
@@ -227,11 +227,11 @@ double process_triplets(TripletMap triplet, double epsilon, const std::vector<Tr
 
     double goal_f1 = 0.95;
     double f1 = 0.0;
-    double f1_old = 0.0;
+    double f1_noised = 0.0;
     double fit = 0.0;
     TripletMap k_selected;
 
-    while (f1 <= goal_f1)
+    while (f1_noised <= goal_f1)
     {
         // add laplace noise to the counts
         std::random_device rd;
@@ -257,14 +257,14 @@ double process_triplets(TripletMap triplet, double epsilon, const std::vector<Tr
         }
         // trie.print(); // Print the trie
         double f1_noise = laplace.return_a_random_variable(); // TODO noise is not correct at the moment -> always the same value after adding noise
-        f1 = trie.calculateF1(trajectories) + f1_noise;
-        f1_old = trie.calculateF1Score(trajectories) + f1_noise;
+        f1 = trie.calculateF1(trajectories);
+        f1_noised = f1 + f1_noise;
         fit = trie.calculateFitness(trajectories);
         // std::cout << "F1-Score of the trie: " << f1 << std::endl;
     }
     
 
-    return fit;
+    return std::make_pair(fit, f1);
 }
 
 // Function to filter out all triplets with counts below the std() of the Laplace distribution
