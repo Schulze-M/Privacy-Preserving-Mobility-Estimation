@@ -2,12 +2,13 @@ import argparse
 import os
 import pickle
 from pprint import pprint
+import csv
 
 import numpy as np
 import ppme
 
 from datacstructure.trie import PrefixTree as trie
-from utils import validate_coordinates, test_cpp_results
+from utils import validate_coordinates, test_cpp_results, plot_eval_results
 
 # Constants
 DATA_FOLDER = '../datasets/'
@@ -26,21 +27,33 @@ def load_data() -> trie:
     '''
 
     # Initialize the parser
-    parser = argparse.ArgumentParser(description='Process the data from the dataset', 
+    parser = argparse.ArgumentParser(description='''Process trajectory data, to create a trie structure. This trie can be use to synthesize data. \n
+                                        This program is a part of the master thesis project: "Privacy-Presering Mobility Estimation".\n
+                                        The goal of this project is to create a data structure that can be used to synthesize data, while preserving the privacy of the users.\n
+                                        The data structure is a trie, which is a tree-like structure that can be used to store and search for data.\n
+                                        The trie is used to store the trajectories of the users, and the data is synthesized by traversing the trie, using a (n-1)th order Markov Chain.\n''',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-                                     usage='%(prog)s [options]',
+                                     usage='%(prog)s <trajectory_file> [options]',
+                                     add_help=True,
+                                     allow_abbrev=True,
+                                     conflict_handler='resolve',
+                                     prog='Trajectory Data Synthezir',
                                      epilog='Enjoy the program! :)'
                                     )
 
     # Add the parser arguments
-    parser.add_argument('traject_file', type=str, help='The name of the trajectory file')
+    parser.add_argument('trajectory_file', type=str, help='The name of the trajectory file')
     parser.add_argument('-t', '--test', type=bool, help='Test the results of the C++ implementation', default=False)
+    parser.add_argument('-e', '--evaluate', type=bool, help='Evaluate the results of the C++ implementation', default=False)
+    parser.add_argument('-n', '--number', type=int, help='The number of evaluation rounds per epsilon', default=100)
+    parser.add_argument('-p', '--plot', type=bool, help='Plot the results of the C++ implementation', default=False)
+    parser.add_argument('-eps', '--epsilon', type=float, help='The epsilon value to use for DP', default=0.1)
 
     # parse the arguments
     args = parser.parse_args()
 
     # create the path to the data files
-    trajs_path = os.path.join(DATA_FOLDER, DATA_CITY_NAME, args.traject_file)
+    trajs_path = os.path.join(DATA_FOLDER, DATA_CITY_NAME, args.trajectory_file)
     
     # load the trajectories
     with open(trajs_path, 'rb') as file:
@@ -55,10 +68,15 @@ def load_data() -> trie:
 
     # create the trie
     print(len(trajs))
-    triplet = ppme.process_prefix_py(trajs)
-    # pprint(triplet, indent=4)
+    if args.evaluate:
+        # Start evaluating the implementation
+        ppme.evaluation(trajs, args.evaluate, args.number)        
+                
+    if args.plot:
+        plot_eval_results('../results/data.csv', '../results/')
 
-    print(triplet)
+    trie = ppme.trie(trajs, args.epsilon)
+    pprint(trie)
 
     # with open("triplets_fit.txt", "w") as f:
     #     for cnt in triplet:

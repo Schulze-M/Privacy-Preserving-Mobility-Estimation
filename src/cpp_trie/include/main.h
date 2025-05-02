@@ -2,6 +2,8 @@
 #ifndef MAIN_H
 #define MAIN_H
 
+// #include "trie.h"
+
 #include <vector>
 #include <unordered_map>
 #include <string>
@@ -63,6 +65,9 @@ struct TripletEqual {
     }
 };
 
+// Forward declaration of Trie class
+// class Trie;
+
 // Overload the <<-Operators for Station
 std::ostream& operator<<(std::ostream& os, const Station& coord);
 
@@ -81,12 +86,18 @@ PrefixMap process_prefix(const std::vector<Trajectory>& trajectories);
 // Generate Triplets
 TripletMap create_triplet_map(const std::vector<Trajectory>& trajectories);
 
-// Function to process triplets
-std::pair<double, double> process_triplets(TripletMap triplet, double epsilon, const std::vector<Trajectory>& trajectories);
+// Generate a trie
+bool create_trie(TripletMap triplet, double epsilon, const std::vector<Trajectory>& trajectories);
+
+// Function to evaluate the trie
+std::pair<double, double> evaluate(TripletMap triplet, double epsilon, const std::vector<Trajectory>& trajectories);
 
 PrefixMap process_test(const Trajectory trajec, const StartMap start);
 
-// Function to get k top triplets
+// Function to add Laplace noise to triplet counts
+TripletMap noise_triplets(const TripletMap& triplets, double epsilon);
+
+// Function to get most significant triplets
 TripletMap select_significant_triplets(const TripletMap& triplet_counts, double epsilon);
 
 #endif // MAIN_H

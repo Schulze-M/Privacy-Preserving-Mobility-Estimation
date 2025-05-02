@@ -1,5 +1,7 @@
 # distutils: language = c++
 # cython: language_level=3
+import os
+import csv
 
 from collections import defaultdict
 from tqdm import tqdm
@@ -41,7 +43,8 @@ cdef extern from "./cpp_trie/include/main.h":
     StartMap process_start(const vector[Trajectory]& trajectories)
     PrefixMap process_prefix(const vector[Trajectory]& trajectories)
     TripletMap create_triplet_map(const vector[Trajectory]& trajectories)
-    pair[double, double] process_triplets(TripletMap triplet, double epsilon, const vector[Trajectory]& trajectories)
+    bool create_trie(TripletMap triplet, double epsilon, const vector[Trajectory]& trajectories)
+    pair[double, double] evaluate(TripletMap triplet, double epsilon, const vector[Trajectory]& trajectories)
     PrefixMap process_test(const Trajectory trajec, const StartMap start)
 
 cdef extern from "./cpp_trie/include/trie.h":
@@ -140,7 +143,10 @@ cdef dict triplet_map_to_dict(TripletMap triplet_map):
     return py_triplet_map
 
 # Main function to process prefixes
-def process_prefix_py(list py_trajectories):
+def trie(list py_trajectories, eps=0.1):
+    """
+    Process the trajectories and build a trie.
+    """
     print("Processing prefixes...")
     start = time.time()
     cdef vector[Trajectory] trajectories = list_to_vector(py_trajectories)
@@ -159,42 +165,88 @@ def process_prefix_py(list py_trajectories):
     start = time.time()
     print("Begin Trie generation...")
 
-    result_list = []
+    # cdef TripletMap triplet_map = process_triplets(trajectories)
+    trie_bool = create_trie(triplet=triplet_map, epsilon=eps, trajectories=trajectories)
+
+    end = time.time()
+
+    print(f"Done Trie generation in {(end - start) / 60} minutes\n")
+
+    start = time.time()
+    #py_triplet_map = triplet_map_to_dict(triplet_map)
+    end = time.time()
+
+    return trie_bool
+
+def evaluation(list py_trajectories, bool eval=False, num_evals=100):
+    """
+    Evaluate the implementation of the Trie.
+    Save results to files.
+    """
+    print("Processing prefixes...")
+    cdef vector[Trajectory] trajectories = list_to_vector(py_trajectories)
+
+    # Generate tripletmap
+    cdef TripletMap triplet_map = create_triplet_map(trajectories)
+
+    # Ensure the results directory exists
+    os.makedirs("../results", exist_ok=True)
+
+    print ("Begin evaluation...")
+
+    # Initialize CSV file
+    header = 'eps,mean_fit,std_fit,mean_f1,std_f1,num_evals\n'
+    with open('../results/data.csv', mode='w', newline='', encoding='utf-8') as csvfile:
+        # Write header
+        csvfile.write(header)
+
     Eps = [0.1, 0.2, 0.5, 0.8, 1.0]
     for eps in Eps:
         fit = []
         f1 = []
-        for i in range(100):
-            # cdef TripletMap triplet_map = process_triplets(trajectories)
-            result = process_triplets(triplet=triplet_map, epsilon=eps, trajectories=trajectories)
+        for i in range(num_evals):
+            result = evaluate(triplet=triplet_map, epsilon=eps, trajectories=trajectories)
             fit.append(result.first)
             f1.append(result.second)
-            # print("Done")
+            
         # get mean of results
-        # print("Finishes one EPSILON!!!")
         mean = np.mean(fit)
         mean_f1 = np.mean(f1)
         # get std of results
         std = np.std(fit)
         std_f1 = np.std(f1)
 
-        with open("eval_fit.txt", "a") as f:
-            f.write(f"EPSILON: {eps}, mean: {mean}, std: {std}\n")
-        with open("eval_f1.txt", "a") as f:
-            f.write(f"EPSILON: {eps}, mean: {mean_f1}, std: {std_f1}\n")
+        # with open("../results/eval_fit.txt", "a") as f:
+        #     f.write(f"EPSILON: {eps}, mean: {mean}, std: {std}\n")
+        # with open("../results/eval_f1.txt", "a") as f:
+        #     f.write(f"EPSILON: {eps}, mean: {mean_f1}, std: {std_f1}\n")
 
-        # Create a tuple with the results
-        # result_list.append((eps, mean, std))
+        # Save results to a dictionary
+        result_dict = {
+            "eps":      eps,
+            "mean_fit": mean,
+            "std_fit":  std,
+            "mean_f1":  mean_f1,
+            "std_f1":   std_f1,
+            "num_evals": num_evals,
+        }
 
-    end = time.time()
+        # Check if 'result' folder is present, if not create it and save dict as CSV-file
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        project_root = os.path.abspath(os.path.join(script_dir, os.pardir))
+        output_dir = os.path.join(project_root, 'results')
+        output_file = os.path.join(output_dir, 'data.csv')
 
-    print(f"Done processing triplet map in {(end - start) / 60} minutes\n")
+        # Write dictionary to CSV
+        with open('../results/data.csv', mode='a', newline='', encoding='utf-8') as csvfile:
+            writer = csv.writer(csvfile)
+            # Write header
+            # Write rows by unpacking each list
+            writer.writerow(result_dict.values())
 
-    start = time.time()
-    #py_triplet_map = triplet_map_to_dict(triplet_map)
-    end = time.time()
+    print("Done with the evaluation process")
 
-    return result_list
+    return
 
 #cdef object _node_to_py(TrieNode* node) except *:
 #    """

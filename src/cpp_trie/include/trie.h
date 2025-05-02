@@ -32,8 +32,20 @@ public:
 // In addition, a fitness measure is provided that computes how many 3-grams from the given trajectories
 // are represented (i.e. are present and have a positive count) in the trie.
 class Trie {
+    // Friend function to create a trie from a triplet map and trajectories.
+    // This function is not a member of the Trie class but needs access to its private members.
+    // friend Trie create_trie(TripletMap triplet, double epsilon, const std::vector<Trajectory>& trajectories);
 private:
     TrieNode* root;
+public:
+    Trie() : root(new TrieNode()) {}
+    ~Trie() { delete root; }
+
+    // delete all nodes and allocate a fresh root
+    void reset() {
+        delete root;
+        root = new TrieNode();
+    }
 
     // Recursive helper to export a node into a JSON-like string.
     // The format is: { "child_station": {"count": <value>, "children": { ... }}, ... }
@@ -57,11 +69,6 @@ private:
     }
 
 public:
-    Trie() : root(new TrieNode()) {}
-    
-    ~Trie() {
-        delete root;
-    }
 
     // Insert a full trajectory (or any sequence of Stations). This method traverses each contiguous subsequence
     // of length ≥ 3 and updates the count in the corresponding node.

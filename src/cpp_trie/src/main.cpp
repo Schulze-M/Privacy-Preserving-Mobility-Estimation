@@ -6,9 +6,12 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cmath>   // for log, exp, M_E
+#include <fstream>
 #include <iostream>
 #include <mutex>
 #include <omp.h>
+#include <optional>
 #include <ostream>
 #include <random>
 #include <unordered_map>
@@ -218,37 +221,41 @@ TripletMap create_triplet_map(const std::vector<Trajectory>& trajectories) {
     return result;
 }
 
-// Function to process triplets
-std::pair<double, double> process_triplets(TripletMap triplet, double epsilon, const std::vector<Trajectory>& trajectories) {
+// Function to generate a trie from the triplet map and trajectories
+bool create_trie(TripletMap triplet, double epsilon, const std::vector<Trajectory>& trajectories) {
 
     // double epsilon = 0.1;       // Adjust epsilon as needed.
     double sensitivity = 1.0;   // Typically 1 for count queries.
     double delta = 1e-8;   // Adjust delta as needed.
+    double gamma = 0.01;
+    double e_0 = 0.01;
+
+    int T = static_cast<int>(std::max((1.0 / gamma) * std::log(2.0 / e_0), 1.0 / (std::exp(1.0) * gamma)));
 
     double goal_f1 = 0.95;
     double f1 = 0.0;
-    double f1_noised = 0.0;
-    double fit = 0.0;
+    TripletMap original_triplet = triplet; // keep original clean
     TripletMap k_selected;
 
-    while (f1_noised <= goal_f1)
-    {
-        // add laplace noise to the counts
+    // Initialize the random number generator
+    std::random_device rd_coin;
+    std::mt19937 gen(rd_coin()); // Mersenne Twister RNG
+    std::uniform_real_distribution<> dis(0.0, 1.0);
+
+    for(int i = 0; i < T; i++)
+    {   
+        // initialize Laplace noise generator
         std::random_device rd;
         Laplace laplace(rd());
-        Gaussian gaussian_noise(sensitivity, epsilon, delta, 1337);
-        // Iterate over all triplet counts and add Gaussian noise.
-        for (auto& entry : triplet) {
-            double noise = laplace.return_a_random_variable();
-            entry.second += noise;
-            if (entry.second < 0.0) {
-                entry.second = 0.0;
-            }
-        }
-        
-        // std::cout << "Number of Triplets: " << triplet.size() << std::endl;
 
-        k_selected = select_significant_triplets(triplet, epsilon); // Select top K triplets
+        // reset triplet to original for each iteration
+        TripletMap triplet_noised = original_triplet;
+
+        // noise all triplet counts, using Laplace noise
+        triplet_noised = noise_triplets(triplet_noised, epsilon);
+    
+        // select significant triplets
+        k_selected = select_significant_triplets(triplet_noised, epsilon); // Select top K triplets
 
         // Create a trie
         Trie trie;
@@ -258,13 +265,127 @@ std::pair<double, double> process_triplets(TripletMap triplet, double epsilon, c
         // trie.print(); // Print the trie
         double f1_noise = laplace.return_a_random_variable(); // TODO noise is not correct at the moment -> always the same value after adding noise
         f1 = trie.calculateF1(trajectories);
-        f1_noised = f1 + f1_noise;
-        fit = trie.calculateFitness(trajectories);
-        // std::cout << "F1-Score of the trie: " << f1 << std::endl;
+        
+        if(f1 + f1_noise >= goal_f1) {
+            // Save trie to json file
+            std::string json = trie.toJson();
+            std::ofstream file("trie.json");
+            if (file.is_open()) {
+                file << json;
+                file.close();
+            } else {
+                std::cerr << "Unable to open file for writing trie JSON." << std::endl;
+            }
+
+
+            // Return the trie if the noised goal F1 score is reached
+            return true;
+        } else if (dis(gen) <= gamma) {
+            // Delete the previous Trie
+            std::ofstream file("trie.json");
+            if (file.is_open()) {
+                file << "{}"; // Write an empty JSON object
+                file.close();
+            } else {
+                std::cerr << "Unable to open file for writing empty trie JSON." << std::endl;
+            }
+
+            return false; // Return false with probability gamma
+        }
+    }
+
+    // Clear JSON file if no trie was created
+    std::ofstream file("trie.json");
+    if (file.is_open()) {
+        file << "{}"; // Write an empty JSON object
+        file.close();
+    } else {
+        std::cerr << "Unable to open file for writing empty trie JSON." << std::endl;
     }
     
+    // Return false if no trie was created
+    return false;
+}
 
-    return std::make_pair(fit, f1);
+// Function to process triplets
+std::pair<double, double> evaluate(TripletMap triplet, double epsilon, const std::vector<Trajectory>& trajectories) {
+
+    // double epsilon = 0.1;       // Adjust epsilon as needed.
+    double sensitivity = 1.0;   // Typically 1 for count queries.
+    double delta = 1e-8;   // Adjust delta as needed.
+    double gamma = 0.01;
+    double e_0 = 0.01;
+
+    int T = static_cast<int>(std::max((1.0 / gamma) * std::log(2.0 / e_0), 1.0 / (std::exp(1.0) * gamma)));
+
+    double goal_f1 = 0.95;
+    double f1 = 0.0;
+    double fit = 0.0;
+    TripletMap original_triplet = triplet; // keep original clean
+    TripletMap k_selected;
+
+    // Initialize the random number generator
+    std::random_device rd_coin;
+    std::mt19937 gen(rd_coin()); // Mersenne Twister RNG
+    std::uniform_real_distribution<> dis(0.0, 1.0);
+
+    for(int i = 0; i < T; i++)
+    {
+        // initialize Laplace noise generator
+        std::random_device rd;
+        Laplace laplace(rd());
+
+        // reset triplet to original for each iteration
+        TripletMap triplet_noised = original_triplet;
+
+        // noise all triplet counts, using Laplace noise
+        triplet_noised = noise_triplets(triplet_noised, epsilon);
+        
+        // select significant triplets
+        k_selected = select_significant_triplets(triplet_noised, epsilon); // Select top K triplets
+
+        // Create a trie
+        Trie trie;
+        for (const auto& entry : k_selected) {
+            trie.insert(entry.first, entry.second);
+        }
+        // trie.print(); // Print the trie
+        double f1_noise = laplace.return_a_random_variable(); // TODO noise is not correct at the moment -> always the same value after adding noise
+        f1 = trie.calculateF1(trajectories);
+        
+        if (f1 + f1_noise >= goal_f1) {
+            fit = trie.calculateFitness(trajectories);
+
+            // Return the eval result if trie is accepted
+            return std::make_pair(fit, f1);
+        } else if (dis(gen) <= gamma) {
+            // Return empty pair with probability gamma
+            return std::make_pair(0.0, 0.0);
+        }
+    }
+    
+    // Return empty pair if no trie was created
+    return std::make_pair(0.0, 0.0);
+}
+
+// Function to noise all triplet counts
+TripletMap noise_triplets(const TripletMap& triplets, double epsilon) {
+    // Define epsilon (privacy parameter) and sensitivity for the count query.
+    double sensitivity = 1.0;       // Adjust sensitivity as needed.
+    double scale = sensitivity / epsilon;
+
+    // add laplace noise to the counts
+    std::random_device rd;
+    Laplace laplace(rd());
+
+    // Iterate over all triplet counts and add Laplace noise.
+    TripletMap noisy_triplet_counts;
+    for (const auto& [triplet, count] : triplets) {
+        double noise = laplace.return_a_random_variable(scale);
+        noisy_triplet_counts[triplet] = count + noise; // Ensure non-negative counts
+    }
+
+    return noisy_triplet_counts;
 }
 
 // Function to filter out all triplets with counts below the std() of the Laplace distribution
@@ -273,21 +394,16 @@ TripletMap select_significant_triplets(
     double epsilon
 ) {
     // Compute std() of the Laplace distribution
-    // sigma = sqrt(2) / epsilon
-    const double sigma = std::sqrt(2.0) / epsilon;
+    // sigma = sqrt(2)*2 / epsilon
+    const double sigma = (std::sqrt(2.0) * 2) / epsilon;
 
     // Filter triplet counts based on the threshold sigma
     TripletMap result;
     for (const auto& [triplet, count] : triplet_counts) {
-        if (count >= sigma) {
+        if (count > sigma) {
             result[triplet] = count;
         }
     }
 
     return result;
 }
-
-// Hallo Esfandiar, bei den Experimenten gab es leider ein Problem mit dem Speichern auf Pythons Seite. Das habe ich jetzt aber lösen können und lasse es laufen. Spätestens Freitag schicke ich Euch die Ergbnisse. 
-// Als Moritz mit mit gestern den Beweis durch gegangen ist hatte ist Ihm noch noch aufgefallen das der Sensitivity Beweis für den F1-Score fehlt. Den Beweis mache cih zu Montag fertig und bespreche den da mit Moritz.
-
-// Schriftlich komme ich sehr gut voran. Es fehlt noch der Beweis, die Evaluation, die Conclusion & Introcution. Ich denke allerdings das es dennoch sehr knapp wird. 

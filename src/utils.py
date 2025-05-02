@@ -1,4 +1,10 @@
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+import numpy as np
+from matplotlib.ticker import StrMethodFormatter
 from tqdm import tqdm
+import pandas as pd
+
 
 def validate_coordinates(latitude: float, longitude: float) -> bool:
     '''
@@ -49,3 +55,52 @@ def test_cpp_results(traj: list, start: dict, prefixes: dict):
 
     assert prefix_dict == prefixes, "The prefix dictionaries are not equal"
     print("The two prefix dictionaries are equal")
+
+def plot_eval_results(file: str, folder: str):
+    '''
+    Plot the evaluation results of the C++ implementation
+    '''
+
+    # Set the color palette
+    c = mpl.colormaps['tab10'].colors
+
+    # Set the figure size
+    # B x H
+    plt.figure(figsize=(9, 4))
+
+    # read the data from the csv file
+    df = pd.read_csv(file)
+    
+    # Now extract into NumPy arrays if you like:
+    x             = df['eps'].values
+    y_fitness     = df['mean_fit'].values
+    y_fitness_std = df['std_fit'].values
+    y_f1          = df['mean_f1'].values
+    y_f1_std      = df['std_f1'].values
+
+    # Plot all graphs
+    plt.plot(x, y_fitness, c=c[0], linewidth=2, label="Fitness", marker='.', markersize=12)
+    plt.plot(x, y_f1, c=c[2], linewidth=2, label="F1-Score", marker='.', markersize=12)
+
+    # Plot standard deviation
+    plt.fill_between(x=x, y1=y_fitness - y_fitness_std, y2=y_fitness + y_fitness_std, alpha=0.1, facecolor=c[0])
+    plt.fill_between(x=x, y1=y_f1 - y_f1_std, y2=y_f1 + y_f1_std, alpha=0.125, facecolor=c[2])
+
+    # Label the axes:
+    plt.xlabel("$\\varepsilon$", fontsize=14)
+    plt.ylabel("Eval Results", fontsize=14)
+
+    # Limits of the axes:
+    plt.xlim(0.05, 1.05)
+    plt.ylim(0.9, 1.02)
+    plt.xticks([0.1, 0.2, 0.5, 0.8, 1.0])
+    plt.yticks(fontsize=12)
+    plt.xticks(fontsize=12) # rotation=-45
+    
+    plt.gca().yaxis.set_major_formatter(StrMethodFormatter('{x:,.2f}'))
+
+    # Show the legend on the plot:
+    plt.legend(loc='best', ncol=7, fontsize=12, frameon=False, handlelength=1.5, handleheight=0.5, borderpad=0.5, labelspacing=0.5)
+    
+    # Save the figure
+    plt.savefig(f'{folder}Results.pdf', bbox_inches='tight', pad_inches=0)
