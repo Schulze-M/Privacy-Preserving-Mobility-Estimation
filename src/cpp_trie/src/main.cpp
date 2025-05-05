@@ -277,6 +277,10 @@ bool create_trie(TripletMap triplet, double epsilon, const std::vector<Trajector
                 std::cerr << "Unable to open file for writing trie JSON." << std::endl;
             }
 
+            auto errors = trie.evaluateCountQueries(trajectories, 1000, 20);
+
+            std::cout << "Errors: " << errors[0] << ", " << errors[1] << ", " << errors[2] << ", " << errors[3] << std::endl;
+
 
             // Return the trie if the noised goal F1 score is reached
             return true;
@@ -308,7 +312,7 @@ bool create_trie(TripletMap triplet, double epsilon, const std::vector<Trajector
 }
 
 // Function to process triplets
-std::pair<double, double> evaluate(TripletMap triplet, double epsilon, const std::vector<Trajectory>& trajectories) {
+EvalResult evaluate(TripletMap triplet, double epsilon, const std::vector<Trajectory>& trajectories) {
 
     // double epsilon = 0.1;       // Adjust epsilon as needed.
     double sensitivity = 1.0;   // Typically 1 for count queries.
@@ -355,17 +359,22 @@ std::pair<double, double> evaluate(TripletMap triplet, double epsilon, const std
         
         if (f1 + f1_noise >= goal_f1) {
             fit = trie.calculateFitness(trajectories);
+            auto errors = trie.evaluateCountQueries(trajectories, 100000, 20);
 
             // Return the eval result if trie is accepted
-            return std::make_pair(fit, f1);
+            return EvalResult{
+                .f1 = f1,
+                .fit = fit,
+                .errors = errors
+            };
         } else if (dis(gen) <= gamma) {
             // Return empty pair with probability gamma
-            return std::make_pair(0.0, 0.0);
+            return EvalResult{ 0.0, 0.0, {0,0,0,0} };
         }
     }
     
     // Return empty pair if no trie was created
-    return std::make_pair(0.0, 0.0);
+    return EvalResult{ 0.0, 0.0, {0,0,0,0} };
 }
 
 // Function to noise all triplet counts
@@ -395,7 +404,7 @@ TripletMap select_significant_triplets(
 ) {
     // Compute std() of the Laplace distribution
     // sigma = sqrt(2)*2 / epsilon
-    const double sigma = (std::sqrt(2.0) * 2) / epsilon;
+    const double sigma = std::sqrt(2.0) / epsilon;
 
     // Filter triplet counts based on the threshold sigma
     TripletMap result;

@@ -9,6 +9,9 @@
 #include <sstream>
 #include <string>
 #include <iomanip>
+#include <random>
+#include <algorithm>
+#include <cmath>
 #include "main.h"  // Assumes Station and Triplet definitions are declared here
 
 // A node in the trie.
@@ -84,9 +87,13 @@ public:
                     node->children[s] = new TrieNode();
                 }
                 node = node->children[s];
-                // Only update the count for sequences of length at least 3.
-                if (i - start + 1 >= 3)
-                    node->count += countValue;
+                // Update the count for this node.
+                // If the node is a leaf (i.e., it has no children), we add the count.
+                // Otherwise, we just update the count.
+                // This allows for the same station to be part of different sequences.
+                // Note: This is a simplification; in a real trie, you might want to handle
+                // this differently to avoid over-counting.
+                node->count += countValue;
             }
         }
     }
@@ -228,67 +235,67 @@ public:
         return totalTriplets > 0 ? static_cast<double>(matchedTriplets) / totalTriplets : 1.0;
     }
 
-    // Calculate the precision of the trie with respect to the allowed behavior.
-    // Here we assume that the set S of all stations observed in the trajectories represents
-    // the maximum allowed transitions from any node.
-    //
-    // For each internal node (node with outgoing transitions) in the trie, we compute:
-    //    escaping_edges = |S| - (number of observed transitions)
-    // The precision is then:
-    //    precision = 1 - (sum_{node}(escaping_edges)) / (number_of_nodes * |S|)
-    //
-    // A precision of 1.0 indicates that at every node, all allowed transitions are observed (i.e. the model is very restrictive),
-    // whereas lower values indicate that the model allows many transitions that were not observed in the log.
-    double calculatePrecision(const std::vector<std::vector<Station>>& trajectories) const {
-        // First, compute S: the set of all stations observed in the trajectories.
-        std::unordered_set<Station> stationSet;
-        for (const auto& trajectory : trajectories) {
-            for (const auto& s : trajectory)
-                stationSet.insert(s);
+    // Estimate prefix count
+    double estimatedCount(const std::vector<Station>& prefix) const {
+        TrieNode* node = root;
+        for (auto const& s: prefix) {
+            auto it = node->children.find(s);
+            if (it==node->children.end()) return 0.0;
+            node = it->second;
         }
-        size_t S = stationSet.size();
-        if (S == 0)
-            return 1.0;
-
-        size_t totalNodes = 0;
-        size_t totalObservedTransitions = 0;
-
-        // Recursively traverse the trie, considering only nodes with outgoing transitions.
-        std::function<void(TrieNode*)> traverse = [&](TrieNode* node) {
-            if (!node)
-                return;
-            if (!node->children.empty()) {
-                totalNodes++;
-                totalObservedTransitions += node->children.size();
-            }
-            for (const auto& kv : node->children) {
-                traverse(kv.second);
-            }
-        };
-
-        traverse(root);
-
-        if (totalNodes == 0)
-            return 1.0;
-
-        size_t totalPossibleTransitions = totalNodes * S;
-        size_t escapingEdges = totalPossibleTransitions - totalObservedTransitions;
-
-        // std::cout << totalNodes << " nodes, " << totalObservedTransitions << " observed transitions, "
-        //           << totalPossibleTransitions << " possible transitions, "
-        //           << escapingEdges << " escaping edges." << std::endl;
-
-        double precision = static_cast<double>(escapingEdges) / totalPossibleTransitions;
-        return precision;
+        return node->count;
     }
 
-    double calculateF1Score(const std::vector<std::vector<Station>>& trajectories) const {
-        double fitness = calculateFitness(trajectories);
-        double precision = calculatePrecision(trajectories);
-        // std::cout << "Fitness: " << fitness << ", Precision: " << precision << std::endl;
-        if (fitness + precision == 0)
-            return 0.0;
-        return 2 * ((fitness * precision) / (fitness + precision));
+    // True prefix count
+    static size_t trueCount(
+        const std::vector<std::vector<Station>>& data,
+        const std::vector<Station>& prefix
+    ) {
+        size_t cnt=0;
+        for (auto const& traj: data) {
+            if (traj.size()<prefix.size()) continue;
+            bool ok=true;
+            for(size_t i=0;i<prefix.size();++i) if (!(traj[i]==prefix[i])) { ok=false; break; }
+            if(ok) ++cnt;
+        }
+        return cnt;
+    }
+
+    // Evaluate average relative errors for random count queries
+    // Splits into 4 subsets by query length up to maxQL
+    std::vector<double> evaluateCountQueries(
+        const std::vector<std::vector<Station>>& data,
+        size_t numQueries = 40000,
+        int maxQL = 12
+    ) const {
+        static thread_local std::mt19937_64 rng(std::random_device{}());
+        // Build universe
+        std::unordered_set<Station, StationHash, StationEqual> us;
+        for(auto const& t: data) for(auto const& s: t) us.insert(s);
+        std::vector<Station> uni(us.begin(), us.end());
+        size_t N=data.size(); 
+        double s_bd=0.001*N;
+        
+        std::uniform_int_distribution<size_t> uid(0, uni.size()-1);
+        const int k=4;
+        std::vector<double> sumE(k,0);
+        std::vector<size_t> cntQ(k,0);
+        for(size_t qi=0;qi<numQueries;++qi) {
+            int idx = qi*k/numQueries;
+            int mlen = std::max(1,(idx+1)*maxQL/k);
+            std::uniform_int_distribution<int> ld(1,mlen);
+            int ql=ld(rng);
+            std::vector<Station> q; q.reserve(ql);
+            for(int i=0;i<ql;++i) q.push_back(uni[uid(rng)]);
+            double tC=trueCount(data,q);
+            double eC=estimatedCount(q);
+            double denom = std::abs(eC) + std::abs(tC) + s_bd;
+            sumE[idx] += std::abs(eC-tC)/denom;
+            cntQ[idx]++;
+        }
+        std::vector<double> avg(k);
+        for(int i=0;i<k;++i) avg[i]=sumE[i]/cntQ[i];
+        return avg;
     }
 };
 

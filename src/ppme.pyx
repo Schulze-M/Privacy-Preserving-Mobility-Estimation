@@ -35,6 +35,11 @@ cdef extern from "./cpp_trie/include/main.h":
         string s2
         string s3
 
+    cdef cppclass EvalResult:
+        double fit
+        double f1
+        vector[double] errors
+
     ctypedef vector[Station] Trajectory
     ctypedef unordered_map[Station, vector[CountStation]] PrefixMap
     ctypedef unordered_map[Station, double] StartMap
@@ -44,7 +49,7 @@ cdef extern from "./cpp_trie/include/main.h":
     PrefixMap process_prefix(const vector[Trajectory]& trajectories)
     TripletMap create_triplet_map(const vector[Trajectory]& trajectories)
     bool create_trie(TripletMap triplet, double epsilon, const vector[Trajectory]& trajectories)
-    pair[double, double] evaluate(TripletMap triplet, double epsilon, const vector[Trajectory]& trajectories)
+    EvalResult evaluate(TripletMap triplet, double epsilon, const vector[Trajectory]& trajectories)
     PrefixMap process_test(const Trajectory trajec, const StartMap start)
 
 cdef extern from "./cpp_trie/include/trie.h":
@@ -193,28 +198,40 @@ def evaluation(list py_trajectories, bool eval=False, num_evals=100):
     os.makedirs("../results", exist_ok=True)
 
     print ("Begin evaluation...")
+    start = time.time()
 
     # Initialize CSV file
-    header = 'eps,mean_fit,std_fit,mean_f1,std_f1,num_evals\n'
-    with open('../results/data.csv', mode='w', newline='', encoding='utf-8') as csvfile:
-        # Write header
-        csvfile.write(header)
+    with open('../results/data.csv', mode='w', newline='', encoding='utf-8') as df:
+        writer = csv.writer(df)
+        writer.writerow(['eps','mean_fit','std_fit','mean_f1','std_f1','num_evals'])
+
+    with open('../results/errors.csv', mode='w', newline='', encoding='utf-8') as ef:
+        writer = csv.writer(ef)
+        writer.writerow([
+            'eps','max_query_length','subset_id',
+            'subset_max_length','mean_error','std_error','num_evals'
+        ])
 
     Eps = [0.1, 0.2, 0.5, 0.8, 1.0]
     for eps in Eps:
         fit = []
         f1 = []
+        errors = []
+        # Evaluate the triplet map
         for i in range(num_evals):
             result = evaluate(triplet=triplet_map, epsilon=eps, trajectories=trajectories)
-            fit.append(result.first)
-            f1.append(result.second)
+            fit.append(result.fit)
+            f1.append(result.f1)
+            errors.append([result.errors[j] for j in range(4)])
             
         # get mean of results
         mean = np.mean(fit)
         mean_f1 = np.mean(f1)
+        mean_errors = np.mean(np.array(errors), axis=0)
         # get std of results
         std = np.std(fit)
         std_f1 = np.std(f1)
+        std_errors = np.std(np.array(errors), axis=0)
 
         # with open("../results/eval_fit.txt", "a") as f:
         #     f.write(f"EPSILON: {eps}, mean: {mean}, std: {std}\n")
@@ -231,11 +248,13 @@ def evaluation(list py_trajectories, bool eval=False, num_evals=100):
             "num_evals": num_evals,
         }
 
+
         # Check if 'result' folder is present, if not create it and save dict as CSV-file
         script_dir = os.path.dirname(os.path.abspath(__file__))
         project_root = os.path.abspath(os.path.join(script_dir, os.pardir))
         output_dir = os.path.join(project_root, 'results')
         output_file = os.path.join(output_dir, 'data.csv')
+        output_file = os.path.join(output_dir, 'errors.csv')
 
         # Write dictionary to CSV
         with open('../results/data.csv', mode='a', newline='', encoding='utf-8') as csvfile:
@@ -244,7 +263,25 @@ def evaluation(list py_trajectories, bool eval=False, num_evals=100):
             # Write rows by unpacking each list
             writer.writerow(result_dict.values())
 
-    print("Done with the evaluation process")
+        for i in range(4):
+            error_dict = {
+                "eps": eps,
+                "max_query_length": 20,
+                "subset_id": i,
+                "subset_max_length": (i +1) * (20/4),
+                "mean_error": mean_errors[i],
+                "std_error": std_errors[i],
+                "num_evals": num_evals,
+            }
+
+            # Write dictionary to CSV
+            with open('../results/errors.csv', mode='a', newline='', encoding='utf-8') as csvfile:
+                writer = csv.writer(csvfile)
+                # Write header
+                # Write rows by unpacking each list
+                writer.writerow(error_dict.values())
+
+    print(f"Done with the evaluation process. Time taken: {(time.time() - start)/60} minutes")
 
     return
 

@@ -38,6 +38,12 @@ struct Triplet {
     }
 };
 
+struct EvalResult {
+    double f1;
+    double fit;
+    std::vector<double> errors;
+};
+
 // Custom hash function for Coordinate
 namespace std {
     template <>
@@ -47,6 +53,18 @@ namespace std {
         }
     };
 }
+
+// Hash and equality functors for Station (for unordered_set/map convenience)
+struct StationHash {
+    size_t operator()(const Station& s) const noexcept {
+        return std::hash<Station>()(s);
+    }
+};
+struct StationEqual {
+    bool operator()(const Station& a, const Station& b) const noexcept {
+        return a == b;
+    }
+};
 
 // Hash function for Triplet.
 struct TripletHash {
@@ -90,7 +108,7 @@ TripletMap create_triplet_map(const std::vector<Trajectory>& trajectories);
 bool create_trie(TripletMap triplet, double epsilon, const std::vector<Trajectory>& trajectories);
 
 // Function to evaluate the trie
-std::pair<double, double> evaluate(TripletMap triplet, double epsilon, const std::vector<Trajectory>& trajectories);
+EvalResult evaluate(TripletMap triplet, double epsilon, const std::vector<Trajectory>& trajectories);
 
 PrefixMap process_test(const Trajectory trajec, const StartMap start);
 

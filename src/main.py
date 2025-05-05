@@ -8,7 +8,7 @@ import numpy as np
 import ppme
 
 from datacstructure.trie import PrefixTree as trie
-from utils import validate_coordinates, test_cpp_results, plot_eval_results
+from utils import validate_coordinates, test_cpp_results, plot_eval_results, plot_error_results
 
 # Constants
 DATA_FOLDER = '../datasets/'
@@ -27,11 +27,11 @@ def load_data() -> trie:
     '''
 
     # Initialize the parser
-    parser = argparse.ArgumentParser(description='''Process trajectory data, to create a trie structure. This trie can be use to synthesize data. \n
-                                        This program is a part of the master thesis project: "Privacy-Presering Mobility Estimation".\n
-                                        The goal of this project is to create a data structure that can be used to synthesize data, while preserving the privacy of the users.\n
-                                        The data structure is a trie, which is a tree-like structure that can be used to store and search for data.\n
-                                        The trie is used to store the trajectories of the users, and the data is synthesized by traversing the trie, using a (n-1)th order Markov Chain.\n''',
+    parser = argparse.ArgumentParser(description='''Process trajectory data, to create a trie structure. This trie can be use to synthesize data.
+                                        This program is a part of the master thesis project: "Privacy-Presering Mobility Estimation".
+                                        The goal of this project is to create a data structure that can be used to synthesize data, while preserving the privacy of the users.
+                                        The data structure is a trie, which is a tree-like structure that can be used to store and search for data.
+                                        The trie is used to store the trajectories of the users, and the data is synthesized by traversing the trie, using a (n-1)th order Markov Chain.''',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter,
                                      usage='%(prog)s <trajectory_file> [options]',
                                      add_help=True,
@@ -74,6 +74,7 @@ def load_data() -> trie:
                 
     if args.plot:
         plot_eval_results('../results/data.csv', '../results/')
+        plot_error_results('../results/errors.csv', '../results/')
 
     trie = ppme.trie(trajs, args.epsilon)
     pprint(trie)
