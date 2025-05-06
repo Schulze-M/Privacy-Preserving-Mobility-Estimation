@@ -264,7 +264,8 @@ bool create_trie(TripletMap triplet, double epsilon, const std::vector<Trajector
         }
         // trie.print(); // Print the trie
         double f1_noise = laplace.return_a_random_variable(); // TODO noise is not correct at the moment -> always the same value after adding noise
-        f1 = trie.calculateF1(trajectories);
+        auto metrics = trie.calculateF1(trajectories);
+        f1 = metrics[0];
         
         if(f1 + f1_noise >= goal_f1) {
             // Save trie to json file
@@ -277,7 +278,7 @@ bool create_trie(TripletMap triplet, double epsilon, const std::vector<Trajector
                 std::cerr << "Unable to open file for writing trie JSON." << std::endl;
             }
 
-            auto errors = trie.evaluateCountQueries(trajectories, 1000, 20);
+            auto errors = trie.evaluateCountQueries(trajectories, 10000, 20);
 
             std::cout << "Errors: " << errors[0] << ", " << errors[1] << ", " << errors[2] << ", " << errors[3] << std::endl;
 
@@ -354,27 +355,30 @@ EvalResult evaluate(TripletMap triplet, double epsilon, const std::vector<Trajec
             trie.insert(entry.first, entry.second);
         }
         // trie.print(); // Print the trie
-        double f1_noise = laplace.return_a_random_variable(); // TODO noise is not correct at the moment -> always the same value after adding noise
-        f1 = trie.calculateF1(trajectories);
+        double f1_noise = laplace.return_a_random_variable();
+        auto metrics = trie.calculateF1(trajectories); // Get array of metrics (F1, precision, recall)
+        f1 = metrics[0];
         
         if (f1 + f1_noise >= goal_f1) {
             fit = trie.calculateFitness(trajectories);
-            auto errors = trie.evaluateCountQueries(trajectories, 100000, 20);
+            auto errors = trie.evaluateCountQueries(trajectories, 10000, 20);
 
             // Return the eval result if trie is accepted
             return EvalResult{
                 .f1 = f1,
                 .fit = fit,
+                .precision = metrics[1],
+                .recall = metrics[2],
                 .errors = errors
             };
         } else if (dis(gen) <= gamma) {
             // Return empty pair with probability gamma
-            return EvalResult{ 0.0, 0.0, {0,0,0,0} };
+            return EvalResult{ 0.0, 0.0, 0.0, 0.0, {0,0,0,0} };
         }
     }
     
     // Return empty pair if no trie was created
-    return EvalResult{ 0.0, 0.0, {0,0,0,0} };
+    return EvalResult{ 0.0, 0.0,0.0, 0.0, {0,0,0,0} };
 }
 
 // Function to noise all triplet counts

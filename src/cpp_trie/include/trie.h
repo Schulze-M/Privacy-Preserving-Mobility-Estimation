@@ -141,7 +141,7 @@ public:
     //
     // Wird 1 zurückgegeben, wenn sowohl trueSet als auch predictedSet leer sind.
     // ============================================================
-    double calculateF1(const std::vector<std::vector<Station>>& trajectories) const {
+    std::array<double,3> calculateF1(const std::vector<std::vector<Station>>& trajectories) const {
         using TripletSet = std::unordered_set<Triplet, TripletHash, TripletEqual>;
 
         // 1) trueSet aus den Trajektorien aufbauen
@@ -182,14 +182,16 @@ public:
         const size_t T = trueSet.size();
 
         // Sonderfälle
-        if (P == 0 && T == 0) return 1.0;   // keine 3-Gramme total → perfekte Übereinstimmung
-        if (P == 0 || T == 0) return 0.0;   // keine Vorhersagen oder keine echten 3-Gramme
+        if (P == 0 && T == 0) return {1.0, 1.0, 1.0};   // keine 3-Gramme total → perfekte Übereinstimmung
+        if (P == 0 || T == 0) return {0.0, 0.0, 0.0};   // keine Vorhersagen oder keine echten 3-Gramme
 
         double precision = static_cast<double>(TP) / P;
         double recall    = static_cast<double>(TP) / T;
-        return (precision + recall > 0.0)
+        double f1 = (precision + recall > 0.0)
              ? 2.0 * (precision * recall) / (precision + recall)
              : 0.0;
+
+        return {f1, precision, recall};
     }
 
     // ============================================================
@@ -274,10 +276,10 @@ public:
         for(auto const& t: data) for(auto const& s: t) us.insert(s);
         std::vector<Station> uni(us.begin(), us.end());
         size_t N=data.size(); 
-        double s_bd=0.001*N;
+        double s_bd=0.01*N;
         
         std::uniform_int_distribution<size_t> uid(0, uni.size()-1);
-        const int k=4;
+        const int k=5;
         std::vector<double> sumE(k,0);
         std::vector<size_t> cntQ(k,0);
         for(size_t qi=0;qi<numQueries;++qi) {
@@ -289,7 +291,7 @@ public:
             for(int i=0;i<ql;++i) q.push_back(uni[uid(rng)]);
             double tC=trueCount(data,q);
             double eC=estimatedCount(q);
-            double denom = std::abs(eC) + std::abs(tC) + s_bd;
+            double denom = std::max(tC, s_bd);
             sumE[idx] += std::abs(eC-tC)/denom;
             cntQ[idx]++;
         }

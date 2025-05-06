@@ -77,14 +77,22 @@ def plot_eval_results(file: str, folder: str):
     y_fitness_std = df['std_fit'].values
     y_f1          = df['mean_f1'].values
     y_f1_std      = df['std_f1'].values
+    y_precision   = df['mean_prec'].values
+    y_precision_std= df['std_prec'].values
+    y_recall      = df['mean_rec'].values
+    y_recall_std  = df['std_rec'].values
 
     # Plot all graphs
     plt.plot(x, y_fitness, c=c[0], linewidth=2, label="Fitness", marker='.', markersize=12)
     plt.plot(x, y_f1, c=c[2], linewidth=2, label="F1-Score", marker='.', markersize=12)
+    plt.plot(x, y_precision, c=c[1], linewidth=2, label="Precision", marker='.', markersize=12)
+    plt.plot(x, y_recall, c=c[3], linewidth=2, label="Recall", marker='.', markersize=12)
 
     # Plot standard deviation
     plt.fill_between(x=x, y1=y_fitness - y_fitness_std, y2=y_fitness + y_fitness_std, alpha=0.1, facecolor=c[0])
     plt.fill_between(x=x, y1=y_f1 - y_f1_std, y2=y_f1 + y_f1_std, alpha=0.125, facecolor=c[2])
+    plt.fill_between(x=x, y1=y_precision - y_precision_std, y2=y_precision + y_precision_std, alpha=0.125, facecolor=c[1])
+    plt.fill_between(x=x, y1=y_recall - y_recall_std, y2=y_recall + y_recall_std, alpha=0.125, facecolor=c[3])
 
     # Label the axes:
     plt.xlabel("$\\varepsilon$", fontsize=14)

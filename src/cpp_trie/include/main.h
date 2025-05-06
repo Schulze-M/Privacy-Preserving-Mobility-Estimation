@@ -41,6 +41,8 @@ struct Triplet {
 struct EvalResult {
     double f1;
     double fit;
+    double precision;
+    double recall;
     std::vector<double> errors;
 };
 

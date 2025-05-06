@@ -38,6 +38,8 @@ cdef extern from "./cpp_trie/include/main.h":
     cdef cppclass EvalResult:
         double fit
         double f1
+        double precision
+        double recall
         vector[double] errors
 
     ctypedef vector[Station] Trajectory
@@ -203,7 +205,7 @@ def evaluation(list py_trajectories, bool eval=False, num_evals=100):
     # Initialize CSV file
     with open('../results/data.csv', mode='w', newline='', encoding='utf-8') as df:
         writer = csv.writer(df)
-        writer.writerow(['eps','mean_fit','std_fit','mean_f1','std_f1','num_evals'])
+        writer.writerow(['eps','mean_fit','std_fit','mean_f1','std_f1', 'mean_prec', 'std_prec', 'mean_rec', 'std_rec', 'num_evals'])
 
     with open('../results/errors.csv', mode='w', newline='', encoding='utf-8') as ef:
         writer = csv.writer(ef)
@@ -216,21 +218,32 @@ def evaluation(list py_trajectories, bool eval=False, num_evals=100):
     for eps in Eps:
         fit = []
         f1 = []
+        precision = []
+        recall = []
         errors = []
         # Evaluate the triplet map
         for i in range(num_evals):
             result = evaluate(triplet=triplet_map, epsilon=eps, trajectories=trajectories)
             fit.append(result.fit)
             f1.append(result.f1)
+            precision.append(result.precision)
+            recall.append(result.recall)
             errors.append([result.errors[j] for j in range(4)])
             
         # get mean of results
         mean = np.mean(fit)
         mean_f1 = np.mean(f1)
+        mean_precision = np.mean(precision)
+        mean_recall = np.mean(recall)
+        # get mean of errors
         mean_errors = np.mean(np.array(errors), axis=0)
+        
         # get std of results
         std = np.std(fit)
         std_f1 = np.std(f1)
+        std_precision = np.std(precision)
+        std_recall = np.std(recall)
+        # get std of errors
         std_errors = np.std(np.array(errors), axis=0)
 
         # with open("../results/eval_fit.txt", "a") as f:
@@ -245,6 +258,10 @@ def evaluation(list py_trajectories, bool eval=False, num_evals=100):
             "std_fit":  std,
             "mean_f1":  mean_f1,
             "std_f1":   std_f1,
+            "mean_prec": mean_precision,
+            "std_prec": std_precision,
+            "mean_rec": mean_recall,
+            "std_rec":  std_recall,
             "num_evals": num_evals,
         }
 
