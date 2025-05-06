@@ -39,8 +39,8 @@ struct Triplet {
 };
 
 struct EvalResult {
-    double f1;
     double fit;
+    double f1;
     double precision;
     double recall;
     std::vector<double> errors;
@@ -109,9 +109,22 @@ TripletMap create_triplet_map(const std::vector<Trajectory>& trajectories);
 // Generate a trie
 bool create_trie(TripletMap triplet, double epsilon, const std::vector<Trajectory>& trajectories);
 
+// Function to create a trie without rejection sampling
+bool create_trie_no_rejection(TripletMap triplet, double epsilon, const std::vector<Trajectory>& trajectories);
+
+// Function to create a trie without any noise
+bool create_trie_no_noise(TripletMap triplet, const std::vector<Trajectory>& trajectories);
+
 // Function to evaluate the trie
 EvalResult evaluate(TripletMap triplet, double epsilon, const std::vector<Trajectory>& trajectories);
 
+// Function to evaluate the trie without rejection sampling
+EvalResult evaluate_no_rejection(TripletMap triplet, double epsilon, const std::vector<Trajectory>& trajectories);
+
+// Function to evaluate the trie without any noise
+EvalResult evaluate_no_noise(TripletMap triplet, const std::vector<Trajectory>& trajectories);
+
+// Function to process test trajectories
 PrefixMap process_test(const Trajectory trajec, const StartMap start);
 
 // Function to add Laplace noise to triplet counts

@@ -51,7 +51,11 @@ cdef extern from "./cpp_trie/include/main.h":
     PrefixMap process_prefix(const vector[Trajectory]& trajectories)
     TripletMap create_triplet_map(const vector[Trajectory]& trajectories)
     bool create_trie(TripletMap triplet, double epsilon, const vector[Trajectory]& trajectories)
+    bool create_trie_no_rejection(TripletMap triplet, double epsilon, const vector[Trajectory]& trajectories)
+    bool create_trie_no_noise(TripletMap triplet, const vector[Trajectory]& trajectories)
     EvalResult evaluate(TripletMap triplet, double epsilon, const vector[Trajectory]& trajectories)
+    EvalResult evaluate_no_rejection(TripletMap triplet, double epsilon, const vector[Trajectory]& trajectories)
+    EvalResult evaluate_no_noise(TripletMap triplet, const vector[Trajectory]& trajectories)
     PrefixMap process_test(const Trajectory trajec, const StartMap start)
 
 cdef extern from "./cpp_trie/include/trie.h":
@@ -150,7 +154,7 @@ cdef dict triplet_map_to_dict(TripletMap triplet_map):
     return py_triplet_map
 
 # Main function to process prefixes
-def trie(list py_trajectories, eps=0.1):
+def trie(list py_trajectories, eps=0.1, do_eval=False, num_evals=100):
     """
     Process the trajectories and build a trie.
     """
@@ -179,23 +183,83 @@ def trie(list py_trajectories, eps=0.1):
 
     print(f"Done Trie generation in {(end - start) / 60} minutes\n")
 
-    start = time.time()
-    #py_triplet_map = triplet_map_to_dict(triplet_map)
-    end = time.time()
+    if do_eval:
+        evaluate_trie(triplet_map, trajectories, num_evals)
 
     return trie_bool
 
-def evaluation(list py_trajectories, bool eval=False, num_evals=100):
+def no_rejection_trie(list py_trajectories, eps=0.1, do_eval=False, num_evals=100):
     """
-    Evaluate the implementation of the Trie.
-    Save results to files.
+    Process the trajectories and build a trie.
     """
     print("Processing prefixes...")
+    start = time.time()
     cdef vector[Trajectory] trajectories = list_to_vector(py_trajectories)
+    end = time.time()
+    print("Done converting to C++ Trajectories")
+    print(f"Time taken to convert: {end - start} seconds\n")
+    # Generate tripletmap
+    start = time.time()
+    cdef TripletMap triplet_map = create_triplet_map(trajectories)
+    end = time.time()
+    print(f"Done creating triplet map in {end - start} seconds\n")
+
+    # Process triplet map
+    start = time.time()
+    print("Begin Trie generation...")
+    trie_bool = create_trie_no_rejection(triplet=triplet_map, epsilon=eps, trajectories=trajectories)
+    end = time.time()
+    print(f"Done Trie generation in {(end - start) / 60} minutes\n")
+
+   # Evaluate the trie
+    if do_eval:
+        eval_no_reject_trie(triplet=triplet_map, traject=trajectories, num_evals=num_evals)
+
+    return trie_bool
+
+"""
+Create a without differential privacy
+"""
+def no_dp_trie(list py_trajectories, do_eval=False, num_evals=100):
+    """
+    Process the trajectories and build a trie.
+    """
+    print("Processing prefixes...")
+    start = time.time()
+    cdef vector[Trajectory] trajectories = list_to_vector(py_trajectories)
+    end = time.time()
+    print("Done converting to C++ Trajectories")
+    print(f"Time taken to convert: {end - start} seconds\n")
 
     # Generate tripletmap
+    start = time.time()
     cdef TripletMap triplet_map = create_triplet_map(trajectories)
+    end = time.time()
 
+    print(f"Done creating triplet map in {end - start} seconds\n")
+
+    # Process triplet map
+    start = time.time()
+    print("Begin Trie generation...")
+
+    trie_bool = create_trie_no_noise(triplet=triplet_map, trajectories=trajectories)
+
+    end = time.time()
+
+    print(f"Done Trie generation in {(end - start) / 60} minutes\n")
+
+    """
+    Evaluate the non DP Trie.
+    """
+    if do_eval:
+        eval_no_dp(triplet_map, trajectories, num_evals)
+
+    return trie_bool
+
+"""
+Function to evaluate the Rejection Sampling Trie generation
+"""
+cdef void evaluate_trie(TripletMap triplet, vector[Trajectory] traject, int num_evals):
     # Ensure the results directory exists
     os.makedirs("../results", exist_ok=True)
 
@@ -223,12 +287,12 @@ def evaluation(list py_trajectories, bool eval=False, num_evals=100):
         errors = []
         # Evaluate the triplet map
         for i in range(num_evals):
-            result = evaluate(triplet=triplet_map, epsilon=eps, trajectories=trajectories)
+            result = evaluate(triplet=triplet, epsilon=eps, trajectories=traject)
             fit.append(result.fit)
             f1.append(result.f1)
             precision.append(result.precision)
             recall.append(result.recall)
-            errors.append([result.errors[j] for j in range(4)])
+            errors.append([result.errors[j] for j in range(5)])
             
         # get mean of results
         mean = np.mean(fit)
@@ -245,11 +309,6 @@ def evaluation(list py_trajectories, bool eval=False, num_evals=100):
         std_recall = np.std(recall)
         # get std of errors
         std_errors = np.std(np.array(errors), axis=0)
-
-        # with open("../results/eval_fit.txt", "a") as f:
-        #     f.write(f"EPSILON: {eps}, mean: {mean}, std: {std}\n")
-        # with open("../results/eval_f1.txt", "a") as f:
-        #     f.write(f"EPSILON: {eps}, mean: {mean_f1}, std: {std_f1}\n")
 
         # Save results to a dictionary
         result_dict = {
@@ -280,12 +339,12 @@ def evaluation(list py_trajectories, bool eval=False, num_evals=100):
             # Write rows by unpacking each list
             writer.writerow(result_dict.values())
 
-        for i in range(4):
+        for i in range(5):
             error_dict = {
                 "eps": eps,
                 "max_query_length": 20,
                 "subset_id": i,
-                "subset_max_length": (i +1) * (20/4),
+                "subset_max_length": (i +1) * (20/5),
                 "mean_error": mean_errors[i],
                 "std_error": std_errors[i],
                 "num_evals": num_evals,
@@ -302,60 +361,204 @@ def evaluation(list py_trajectories, bool eval=False, num_evals=100):
 
     return
 
-#cdef object _node_to_py(TrieNode* node) except *:
-#    """
-#    Recursively convert a C++ TrieNode* into a Python dict
-#      { 'count': <float>, 'children': { station_name: <child_dict>, … } }
-#    """
-#    cdef dict py_node = {
-#        'count': node.count,
-#       'children': {}
-#    }
-#    cdef pair[Station, TrieNode*] entry
-#    for entry in node.children:
-#        # unpack
-#        st    = entry.first
-#        child = entry.second
-#        # decode std::string bytes to Python str
-#        name = (<string>st.data).decode('utf-8')
-#        py_node['children'][name] = _node_to_py(child)
-#    return py_node
-#
-#def trie_to_dict(Trie& trie) -> dict:
-#    """
-#    Top-level: run the recursive converter on trie.root
-#    """
-#    if trie.root == NULL:
-#        raise ValueError("Trie has no root")
-#    return _node_to_py(trie.root)
-#
-# def draw_trie(Trie& trie, filename: str = None, view: bool = False):
-#     """
-#     Render a C++ Trie as a Graphviz Digraph.
-#     
-#     - trie: your wrapped C++ Trie instance
-#     - filename: if given, the .gv (or .pdf/.png) file to write & render
-#     - view: whether to open the viewer after rendering
-#     Returns a graphviz.Digraph object.
-#     """
-#     from graphviz import Digraph
-#     # Convert to nested dict
-#     py_root = trie_to_dict(trie)
-#     
-#     dot = Digraph(comment="Trie")
-#     dot.node('root', label=f"root\ncount={py_root['count']:.1f}")
-#     
-#     def _recurse(node: dict, node_id: str):
-#         for station, child in node['children'].items():
-#             # create a unique id per node
-#             child_id = f"{node_id}_{station}"
-#             # Graphviz node label shows station name + its count
-#             dot.node(child_id, label=f"{station}\ncount={child['count']:.1f}")
-#             dot.edge(node_id, child_id)
-#             _recurse(child, child_id)
-#     
-#     _recurse(py_root, 'root')
-#     
-#     if filename is not None:
-#         dot.render(filename, view=view, cleanup=True)
-#     return dot
+"""
+Function to evaluate the trie generation without Rejection Sampling
+"""
+cdef void eval_no_reject_trie(TripletMap triplet, vector[Trajectory] traject, int num_evals):
+    # Ensure the results directory exists
+    os.makedirs("../results", exist_ok=True)
+
+    print ("Begin evaluation...")
+    start = time.time()
+
+    # Initialize CSV file
+    with open('../results/data_no_reject.csv', mode='w', newline='', encoding='utf-8') as df:
+        writer = csv.writer(df)
+        writer.writerow(['eps','mean_fit','std_fit','mean_f1','std_f1', 'mean_prec', 'std_prec', 'mean_rec', 'std_rec', 'num_evals'])
+
+    with open('../results/errors_no_reject.csv', mode='w', newline='', encoding='utf-8') as ef:
+        writer = csv.writer(ef)
+        writer.writerow([
+            'eps','max_query_length','subset_id',
+            'subset_max_length','mean_error','std_error','num_evals'
+        ])
+
+    Eps = [0.1, 0.2, 0.5, 0.8, 1.0]
+    for eps in Eps:
+        fit = []
+        f1 = []
+        precision = []
+        recall = []
+        errors = []
+        # Evaluate the triplet map
+        for i in range(num_evals):
+            result = evaluate_no_rejection(triplet=triplet, epsilon=eps, trajectories=traject)
+            fit.append(result.fit)
+            f1.append(result.f1)
+            precision.append(result.precision)
+            recall.append(result.recall)
+            errors.append([result.errors[j] for j in range(5)])
+            
+        # get mean of results
+        mean = np.mean(fit)
+        mean_f1 = np.mean(f1)
+        mean_precision = np.mean(precision)
+        mean_recall = np.mean(recall)
+        # get mean of errors
+        mean_errors = np.mean(np.array(errors), axis=0)
+        
+        # get std of results
+        std = np.std(fit)
+        std_f1 = np.std(f1)
+        std_precision = np.std(precision)
+        std_recall = np.std(recall)
+        # get std of errors
+        std_errors = np.std(np.array(errors), axis=0)
+
+        # Save results to a dictionary
+        result_dict = {
+            "eps":      eps,
+            "mean_fit": mean,
+            "std_fit":  std,
+            "mean_f1":  mean_f1,
+            "std_f1":   std_f1,
+            "mean_prec": mean_precision,
+            "std_prec": std_precision,
+            "mean_rec": mean_recall,
+            "std_rec":  std_recall,
+            "num_evals": num_evals,
+        }
+
+        # Check if 'result' folder is present, if not create it and save dict as CSV-file
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        project_root = os.path.abspath(os.path.join(script_dir, os.pardir))
+        output_dir = os.path.join(project_root, 'results')
+        output_file = os.path.join(output_dir, 'data.csv')
+        output_file = os.path.join(output_dir, 'errors.csv')
+
+        # Write dictionary to CSV
+        with open('../results/data_no_reject.csv', mode='a', newline='', encoding='utf-8') as csvfile:
+            writer = csv.writer(csvfile)
+            # Write header
+            # Write rows by unpacking each list
+            writer.writerow(result_dict.values())
+
+        for i in range(5):
+            error_dict = {
+                "eps": eps,
+                "max_query_length": 20,
+                "subset_id": i,
+                "subset_max_length": (i +1) * (20/5),
+                "mean_error": mean_errors[i],
+                "std_error": std_errors[i],
+                "num_evals": num_evals,
+            }
+
+            # Write dictionary to CSV
+            with open('../results/errors_no_reject.csv', mode='a', newline='', encoding='utf-8') as csvfile:
+                writer = csv.writer(csvfile)
+                # Write header
+                # Write rows by unpacking each list
+                writer.writerow(error_dict.values())
+
+    print(f"Done with the evaluation process. Time taken: {(time.time() - start)/60} minutes")
+
+    return
+
+cdef void eval_no_dp(TripletMap triplet, vector[Trajectory] traject, int num_evals):
+    
+    # Ensure the results directory exists
+    os.makedirs("../results", exist_ok=True)
+
+    print ("Begin evaluation...")
+    start = time.time()
+
+    # Initialize CSV file
+    with open('../results/data_noDP.csv', mode='w', newline='', encoding='utf-8') as df:
+        writer = csv.writer(df)
+        writer.writerow(['eps','mean_fit','std_fit','mean_f1','std_f1', 'mean_prec', 'std_prec', 'mean_rec', 'std_rec', 'num_evals'])
+
+    with open('../results/errors_noDP.csv', mode='w', newline='', encoding='utf-8') as ef:
+        writer = csv.writer(ef)
+        writer.writerow([
+            'eps','max_query_length','subset_id',
+            'subset_max_length','mean_error','std_error','num_evals'
+        ])
+    
+    fit = []
+    f1 = []
+    precision = []
+    recall = []
+    errors = []
+    # Evalaute the trie
+    for i in range(num_evals):
+    
+        result = evaluate_no_noise(triplet=triplet, trajectories=traject)
+        fit.append(result.fit)
+        f1.append(result.f1)
+        precision.append(result.precision)
+        recall.append(result.recall)
+        errors.append([result.errors[j] for j in range(5)])
+
+    # get mean of results
+    mean_fit = np.mean(fit)
+    mean_f1 = np.mean(f1)
+    mean_precision = np.mean(precision)
+    mean_recall = np.mean(recall)
+    # get mean of errors
+    mean_errors = np.mean(np.array(errors), axis=0)
+
+    # get std of results
+    std_fit = np.std(fit)
+    std_f1 = np.std(f1)
+    std_precision = np.std(precision)
+    std_recall = np.std(recall)
+    # get std of errors
+    std_errors = np.std(np.array(errors), axis=0)
+
+    # Save results to a dictionary
+    result_dict = {
+        "eps":      np.inf,
+        "mean_fit": mean_fit,
+        "std_fit":  std_fit,
+        "mean_f1":  mean_f1,
+        "std_f1":   std_f1,
+        "mean_prec": mean_precision,
+        "std_prec": std_precision,
+        "mean_rec": mean_recall,
+        "std_rec":  std_recall,
+        "num_evals": 100,
+    }
+
+    # Check if 'result' folder is present, if not create it and save dict as CSV-file
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    project_root = os.path.abspath(os.path.join(script_dir, os.pardir))
+    output_dir = os.path.join(project_root, 'results')
+    output_file = os.path.join(output_dir, 'data_noDP.csv')
+    output_file = os.path.join(output_dir, 'errors_noDP.csv')
+    
+    # Write dictionary to CSV
+    with open('../results/data_noDP.csv', mode='a', newline='', encoding='utf-8') as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerow(result_dict.values())
+
+    for i in range(5):
+        error_dict = {
+            "eps": np.inf,
+            "max_query_length": 20,
+            "subset_id": i,
+            "subset_max_length": (i +1) * (20/5),
+            "mean_error": mean_errors[i],
+            "std_error": std_errors[i],
+            "num_evals": 100,
+        }
+
+        # Write dictionary to CSV
+        with open('../results/errors_noDP.csv', mode='a', newline='', encoding='utf-8') as csvfile:
+            writer = csv.writer(csvfile)
+            # Write header
+            # Write rows by unpacking each list
+            writer.writerow(error_dict.values())
+    print(f"Done with the evaluation process. Time taken: {(time.time() - start)/60} minutes")
+
+    return

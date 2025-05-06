@@ -1,7 +1,7 @@
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-import numpy as np
 from matplotlib.ticker import StrMethodFormatter
+import numpy as np
 from tqdm import tqdm
 import pandas as pd
 
@@ -81,12 +81,14 @@ def plot_eval_results(file: str, folder: str):
     y_precision_std= df['std_prec'].values
     y_recall      = df['mean_rec'].values
     y_recall_std  = df['std_rec'].values
+    y_baseline = np.ones_like(x)
 
     # Plot all graphs
     plt.plot(x, y_fitness, c=c[0], linewidth=2, label="Fitness", marker='.', markersize=12)
     plt.plot(x, y_f1, c=c[2], linewidth=2, label="F1-Score", marker='.', markersize=12)
     plt.plot(x, y_precision, c=c[1], linewidth=2, label="Precision", marker='.', markersize=12)
     plt.plot(x, y_recall, c=c[3], linewidth=2, label="Recall", marker='.', markersize=12)
+    plt.plot(x, y_baseline, c='black', linewidth=2, label="Baseline")
 
     # Plot standard deviation
     plt.fill_between(x=x, y1=y_fitness - y_fitness_std, y2=y_fitness + y_fitness_std, alpha=0.1, facecolor=c[0])
@@ -119,7 +121,116 @@ def plot_error_results(file: str, folder: str):
     '''
 
     # Set the color palette
+    #  c = mpl.colormaps['tab10'].colors
+
+    # Set the figure size
+    # B x H
+    plt.figure(figsize=(9, 4))
+
+    # read the data from the csv file
+    df = pd.read_csv(file)
+    df_base = pd.read_csv('../results/errors_noDP.csv')
+    
+    # Plot
+    plt.figure()
+    for length, group in df.groupby('subset_max_length'):
+        x = group['eps']
+        y = group['mean_error']
+        err = group['std_error']
+        # plot mean line
+        plt.plot(x, y, marker='o', label=f'max length = {length}')
+        # fill ± std deviation
+        plt.fill_between(x, y - err, y + err, alpha=0.3)
+
+    for length, group in df_base.groupby('subset_max_length'):
+        x = group['eps']
+        y = group['mean_error']
+        err = group['std_error']
+        # plot mean line
+        plt.plot(x, y, marker='x', label=f'max length = {length} (Baseline)')
+        # fill ± std deviation
+        plt.fill_between(x, y - err, y + err, alpha=0.3)
+
+    # Plot standard deviation
+    # plt.fill_between(x=x, y1=y_fitness - y_fitness_std, y2=y_fitness + y_fitness_std, alpha=0.1, facecolor=c[0])
+    # plt.fill_between(x=x, y1=y_f1 - y_f1_std, y2=y_f1 + y_f1_std, alpha=0.125, facecolor=c[2])
+
+    # Label the axes:
+    plt.xlabel("$\\varepsilon$", fontsize=14)
+    plt.ylabel('Mean Error')
+    plt.title('Mean Error vs ε with ±1σ Bands')
+    plt.legend()
+    plt.grid(True)
+
+    # Save the figure
+    plt.savefig(f'{folder}Results_erros.pdf', bbox_inches='tight', pad_inches=0)
+
+def plot_eval_results_no_reject(file: str, folder: str):
+    '''
+    Plot the evaluation results of the C++ implementation
+    '''
+
+    # Set the color palette
     c = mpl.colormaps['tab10'].colors
+
+    # Set the figure size
+    # B x H
+    plt.figure(figsize=(9, 4))
+
+    # read the data from the csv file
+    df = pd.read_csv(file)
+    
+    # Now extract into NumPy arrays if you like:
+    x             = df['eps'].values
+    y_fitness     = df['mean_fit'].values
+    y_fitness_std = df['std_fit'].values
+    y_f1          = df['mean_f1'].values
+    y_f1_std      = df['std_f1'].values
+    y_precision   = df['mean_prec'].values
+    y_precision_std= df['std_prec'].values
+    y_recall      = df['mean_rec'].values
+    y_recall_std  = df['std_rec'].values
+    y_baseline = np.ones_like(x) 
+
+    # Plot all graphs
+    plt.plot(x, y_fitness, c=c[0], linewidth=2, label="Fitness", marker='.', markersize=12)
+    plt.plot(x, y_f1, c=c[2], linewidth=2, label="F1-Score", marker='.', markersize=12)
+    plt.plot(x, y_precision, c=c[1], linewidth=2, label="Precision", marker='.', markersize=12)
+    plt.plot(x, y_recall, c=c[3], linewidth=2, label="Recall", marker='.', markersize=12)
+    plt.plot(x, y_baseline, c='black', linewidth=2, label="Baseline")
+
+    # Plot standard deviation
+    plt.fill_between(x=x, y1=y_fitness - y_fitness_std, y2=y_fitness + y_fitness_std, alpha=0.1, facecolor=c[0])
+    plt.fill_between(x=x, y1=y_f1 - y_f1_std, y2=y_f1 + y_f1_std, alpha=0.125, facecolor=c[2])
+    plt.fill_between(x=x, y1=y_precision - y_precision_std, y2=y_precision + y_precision_std, alpha=0.125, facecolor=c[1])
+    plt.fill_between(x=x, y1=y_recall - y_recall_std, y2=y_recall + y_recall_std, alpha=0.125, facecolor=c[3])
+
+    # Label the axes:
+    plt.xlabel("$\\varepsilon$", fontsize=14)
+    plt.ylabel("Eval Results", fontsize=14)
+
+    # Limits of the axes:
+    plt.xlim(0.05, 1.05)
+    plt.ylim(0.0, 1.15)
+    plt.xticks([0.1, 0.2, 0.5, 0.8, 1.0])
+    plt.yticks(fontsize=12)
+    plt.xticks(fontsize=12) # rotation=-45
+    
+    plt.gca().yaxis.set_major_formatter(StrMethodFormatter('{x:,.2f}'))
+
+    # Show the legend on the plot:
+    plt.legend(loc='best', ncol=7, fontsize=12, frameon=False, handlelength=1.5, handleheight=0.5, borderpad=0.5, labelspacing=0.5)
+    
+    # Save the figure
+    plt.savefig(f'{folder}Results_no_reject.pdf', bbox_inches='tight', pad_inches=0)
+
+def plot_error_results_no_reject(file: str, folder: str):
+    '''
+    Plot the error results of the C++ implementation
+    '''
+
+    # Set the color palette
+    #  c = mpl.colormaps['tab10'].colors
 
     # Set the figure size
     # B x H
@@ -151,4 +262,4 @@ def plot_error_results(file: str, folder: str):
     plt.grid(True)
 
     # Save the figure
-    plt.savefig(f'{folder}Results_erros.pdf', bbox_inches='tight', pad_inches=0)
+    plt.savefig(f'{folder}Results_erros_no_reject.pdf', bbox_inches='tight', pad_inches=0)

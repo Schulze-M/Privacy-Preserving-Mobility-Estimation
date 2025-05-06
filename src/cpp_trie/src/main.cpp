@@ -280,9 +280,6 @@ bool create_trie(TripletMap triplet, double epsilon, const std::vector<Trajector
 
             auto errors = trie.evaluateCountQueries(trajectories, 10000, 20);
 
-            std::cout << "Errors: " << errors[0] << ", " << errors[1] << ", " << errors[2] << ", " << errors[3] << std::endl;
-
-
             // Return the trie if the noised goal F1 score is reached
             return true;
         } else if (dis(gen) <= gamma) {
@@ -310,6 +307,61 @@ bool create_trie(TripletMap triplet, double epsilon, const std::vector<Trajector
     
     // Return false if no trie was created
     return false;
+}
+
+// Function to create a from a triplet map and trajectories, without rejection sampling
+bool create_trie_no_rejection(TripletMap triplet, double epsilon, const std::vector<Trajectory>& trajectories) {
+    
+    // initialize Laplace noise generator
+    std::random_device rd;
+    Laplace laplace(rd());
+
+    // noise all triplet counts, using Laplace noise
+    triplet = noise_triplets(triplet, epsilon);
+
+    // select significant triplets
+    TripletMap k_selected = select_significant_triplets(triplet, epsilon); // Select top K triplets
+    
+    // Create a trie from the triplet map and trajectories
+    Trie trie;
+    for (const auto& entry : k_selected) {
+        trie.insert(entry.first, entry.second);
+    }
+    
+
+    // Save trie to json file
+    std::string json = trie.toJson();
+    std::ofstream file("trie_noReject.json");
+    if (file.is_open()) {
+        file << json;
+        file.close();
+    } else {
+        std::cerr << "Unable to open file for writing trie JSON." << std::endl;
+    }
+
+    return true; // Return true if the trie was created successfully
+}
+
+// Function to create a trie without any noise -> base case
+bool create_trie_no_noise(TripletMap triplet, const std::vector<Trajectory>& trajectories) {
+    
+    // Create a trie from the triplet map and trajectories
+    Trie trie;
+    for (const auto& entry : triplet) {
+        trie.insert(entry.first, entry.second);
+    }
+    
+    // Save trie to json file
+    std::string json = trie.toJson();
+    std::ofstream file("trie_noDP.json");
+    if (file.is_open()) {
+        file << json;
+        file.close();
+    } else {
+        std::cerr << "Unable to open file for writing trie JSON." << std::endl;
+    }
+
+    return true; // Return true if the trie was created successfully
 }
 
 // Function to process triplets
@@ -354,7 +406,7 @@ EvalResult evaluate(TripletMap triplet, double epsilon, const std::vector<Trajec
         for (const auto& entry : k_selected) {
             trie.insert(entry.first, entry.second);
         }
-        // trie.print(); // Print the trie
+        
         double f1_noise = laplace.return_a_random_variable();
         auto metrics = trie.calculateF1(trajectories); // Get array of metrics (F1, precision, recall)
         f1 = metrics[0];
@@ -365,8 +417,8 @@ EvalResult evaluate(TripletMap triplet, double epsilon, const std::vector<Trajec
 
             // Return the eval result if trie is accepted
             return EvalResult{
-                .f1 = f1,
                 .fit = fit,
+                .f1 = f1,
                 .precision = metrics[1],
                 .recall = metrics[2],
                 .errors = errors
@@ -379,6 +431,66 @@ EvalResult evaluate(TripletMap triplet, double epsilon, const std::vector<Trajec
     
     // Return empty pair if no trie was created
     return EvalResult{ 0.0, 0.0,0.0, 0.0, {0,0,0,0} };
+}
+
+// Function to eval trie without rejection sampling
+EvalResult evaluate_no_rejection(TripletMap triplet, double epsilon, const std::vector<Trajectory>& trajectories) {
+    
+    // initialize Laplace noise generator
+    std::random_device rd;
+    Laplace laplace(rd());
+
+    // noise all triplet counts, using Laplace noise
+    triplet = noise_triplets(triplet, epsilon);
+
+    // select significant triplets
+    TripletMap k_selected = select_significant_triplets(triplet, epsilon); // Select top K triplets
+    
+    // Create a trie from the triplet map and trajectories
+    Trie trie;
+    for (const auto& entry : k_selected) {
+        trie.insert(entry.first, entry.second);
+    }
+
+    double fit = 0.0;
+    auto metrics = trie.calculateF1(trajectories); // Get array of metrics (F1, precision, recall)
+    
+    fit = trie.calculateFitness(trajectories);
+    
+    auto errors = trie.evaluateCountQueries(trajectories, 10000, 20);
+
+    return EvalResult{
+        .fit = fit,
+        .f1 = metrics[0],
+        .precision = metrics[1],
+        .recall = metrics[2],
+        .errors = errors
+    };
+}
+
+// Function to eval base case without noise
+EvalResult evaluate_no_noise(TripletMap triplet, const std::vector<Trajectory>& trajectories) {
+    
+    // Create a trie from the triplet map and trajectories
+    Trie trie;
+    for (const auto& entry : triplet) {
+        trie.insert(entry.first, entry.second);
+    }
+
+    double fit = 0.0;
+    auto metrics = trie.calculateF1(trajectories); // Get array of metrics (F1, precision, recall)
+    
+    fit = trie.calculateFitness(trajectories);
+    
+    auto errors = trie.evaluateCountQueries(trajectories, 10000, 20);
+
+    return EvalResult{
+        .fit = fit,
+        .f1 = metrics[0],
+        .precision = metrics[1],
+        .recall = metrics[2],
+        .errors = errors
+    };
 }
 
 // Function to noise all triplet counts

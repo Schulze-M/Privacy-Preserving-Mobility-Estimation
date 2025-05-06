@@ -8,7 +8,7 @@ import numpy as np
 import ppme
 
 from datacstructure.trie import PrefixTree as trie
-from utils import validate_coordinates, test_cpp_results, plot_eval_results, plot_error_results
+from utils import validate_coordinates, test_cpp_results, plot_eval_results, plot_error_results, plot_error_results_no_reject, plot_eval_results_no_reject
 
 # Constants
 DATA_FOLDER = '../datasets/'
@@ -44,10 +44,12 @@ def load_data() -> trie:
     # Add the parser arguments
     parser.add_argument('trajectory_file', type=str, help='The name of the trajectory file')
     parser.add_argument('-t', '--test', type=bool, help='Test the results of the C++ implementation', default=False)
-    parser.add_argument('-e', '--evaluate', type=bool, help='Evaluate the results of the C++ implementation', default=False)
+    parser.add_argument('-e', '--evaluate', help='Evaluate the results of the C++ implementation', default=False, action='store_true')
     parser.add_argument('-n', '--number', type=int, help='The number of evaluation rounds per epsilon', default=100)
-    parser.add_argument('-p', '--plot', type=bool, help='Plot the results of the C++ implementation', default=False)
+    parser.add_argument('-p', '--plot', help='Plot the results of the C++ implementation', default=False, action='store_true')
     parser.add_argument('-eps', '--epsilon', type=float, help='The epsilon value to use for DP', default=0.1)
+    parser.add_argument('--noDP', help='Create a Trie without using differntial privacy', default=False, action='store_true')
+    parser.add_argument('--noReject', help='Create a Trie without using rejection sampling', default=False, action='store_true')
 
     # parse the arguments
     args = parser.parse_args()
@@ -67,26 +69,26 @@ def load_data() -> trie:
     #     trajs = [np.array([[coord[0], coord[2], coord[1]] for coord in array]) for array in trajs]
 
     # create the trie
-    print(len(trajs))
-    if args.evaluate:
-        # Start evaluating the implementation
-        ppme.evaluation(trajs, args.evaluate, args.number)        
-                
+    print(len(trajs))      
+
+    # Create Trie with rejection sampling
+    if not args.noReject:
+        trie = ppme.trie(trajs, args.epsilon, args.evaluate, args.number)
+    else:
+        # Create trie without rejection sampling
+        trie = ppme.no_rejection_trie(trajs, args.epsilon, args.evaluate, args.number)
+
+    # Create trie without DP
+    if args.noDP:
+        ppme.no_dp_trie(trajs, args.evaluate, args.number)
+
+    pprint(trie)
+
     if args.plot:
         plot_eval_results('../results/data.csv', '../results/')
         plot_error_results('../results/errors.csv', '../results/')
-
-    trie = ppme.trie(trajs, args.epsilon)
-    pprint(trie)
-
-    # with open("triplets_fit.txt", "w") as f:
-    #     for cnt in triplet:
-    #         f.write(f"{cnt}\n")
-
-    
-    # test the results
-    # if args.test:
-    #     test_cpp_results(trajs[:100_000], start, prefix)
+        plot_error_results_no_reject('../results/errors_no_reject.csv', '../results/')
+        plot_eval_results_no_reject('../results/data_no_reject.csv', '../results/')
 
 
 if __name__ == '__main__':
