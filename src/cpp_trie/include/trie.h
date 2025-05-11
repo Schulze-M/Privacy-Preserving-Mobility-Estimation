@@ -8,6 +8,7 @@
 #include <vector>
 #include <sstream>
 #include <string>
+#include <set>
 #include <iomanip>
 #include <random>
 #include <algorithm>
@@ -193,6 +194,51 @@ public:
 
         return {f1, precision, recall};
     }
+
+    // returns { TP, FP, FN, TN }
+    std::array<double,4> calculateConfusionMatrix(const std::vector<std::vector<Station>>& trajectories) const {
+        using TripletSet = std::unordered_set<Triplet, TripletHash, TripletEqual>;
+
+        // 1) Build trueSet from the trajectories
+        TripletSet trueSet;
+        for (const auto& traj : trajectories) {
+            if (traj.size() < 3) continue;
+            for (size_t i = 0; i + 2 < traj.size(); ++i) {
+                trueSet.insert( Triplet{ traj[i], traj[i+1], traj[i+2] } );
+            }
+        }
+
+         // 2) Build predictedSet from the trie (depth exactly 3, count > 0)
+        TripletSet predictedSet;
+        for (auto const& [s1, n1] : root->children) {
+            for (auto const& [s2, n2] : n1->children) {
+                for (auto const& [s3, n3] : n2->children) {
+                    if (n3->count > 0.0)
+                        predictedSet.insert( Triplet{ s1, s2, s3 } );
+                }
+            }
+        }
+
+        // 3) Universe = union of true and predicted
+        TripletSet allSet = trueSet;
+        allSet.insert(predictedSet.begin(), predictedSet.end());
+
+        // 4) Compute confusion‐matrix counts
+        double TP = 0.0, FP = 0.0, FN = 0.0, TN = 0.0;
+        for (auto const& t : allSet) {
+            bool isTrue = !!trueSet.count(t);
+            bool isPred = !!predictedSet.count(t);
+            if      (isPred && isTrue)  ++TP;
+            else if (isPred && !isTrue) ++FP;
+            else if (!isPred && isTrue) ++FN;
+            else                         ++TN;  // here TN will always stay zero, 
+                                                // since universe excludes anything neither
+                                                // predicted nor true
+        }
+
+        return { TP, FP, FN, TN };
+    }
+
 
     // ============================================================
     // New Method: calculateFitness

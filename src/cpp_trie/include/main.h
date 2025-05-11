@@ -44,6 +44,13 @@ struct EvalResult {
     double precision;
     double recall;
     std::vector<double> errors;
+    double specificty;
+    double npv;
+    double accuracy;
+    double jaccard;
+    double mcc;
+    double fnr;
+    double p4;
 };
 
 // Custom hash function for Coordinate

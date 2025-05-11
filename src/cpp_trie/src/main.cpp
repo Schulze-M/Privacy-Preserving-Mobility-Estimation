@@ -226,14 +226,16 @@ bool create_trie(TripletMap triplet, double epsilon, const std::vector<Trajector
 
     // double epsilon = 0.1;       // Adjust epsilon as needed.
     double sensitivity = 1.0;   // Typically 1 for count queries.
-    double delta = 1e-8;   // Adjust delta as needed.
     double gamma = 0.01;
     double e_0 = 0.01;
+    
+    epsilon = epsilon -e_0; // Set epsilon for Laplace noise
+    double e_fnr = epsilon * 0.1;
+    double e_cnt = epsilon * 0.9;
 
     int T = static_cast<int>(std::max((1.0 / gamma) * std::log(2.0 / e_0), 1.0 / (std::exp(1.0) * gamma)));
 
-    double goal_f1 = 0.95;
-    double f1 = 0.0;
+    double goal_f1 = 0.85;
     TripletMap original_triplet = triplet; // keep original clean
     TripletMap k_selected;
 
@@ -246,28 +248,44 @@ bool create_trie(TripletMap triplet, double epsilon, const std::vector<Trajector
     {   
         // initialize Laplace noise generator
         std::random_device rd;
-        Laplace laplace(rd());
+        Laplace lap_fnr(sensitivity/e_fnr, rd());
 
         // reset triplet to original for each iteration
         TripletMap triplet_noised = original_triplet;
 
         // noise all triplet counts, using Laplace noise
-        triplet_noised = noise_triplets(triplet_noised, epsilon);
+        triplet_noised = noise_triplets(triplet_noised, e_cnt);
     
         // select significant triplets
-        k_selected = select_significant_triplets(triplet_noised, epsilon); // Select top K triplets
+        k_selected = select_significant_triplets(triplet_noised, e_cnt); // Select top K triplets
 
         // Create a trie
         Trie trie;
         for (const auto& entry : k_selected) {
             trie.insert(entry.first, entry.second);
         }
+
+        std::array<double, 4> values = trie.calculateConfusionMatrix(trajectories); // Get tp, fp, fn, tn
+
+        // noise the values using Laplace noise
+        for (size_t i = 0; i < values.size(); ++i) {
+            double noise = lap_fnr.return_a_random_variable();
+            // clip counts at zero. -> negative counts are unlikely, either a station is taken or not.
+            values[i] = std::max(0.0, values[i] + noise);
+        }
+
         // trie.print(); // Print the trie
-        double f1_noise = laplace.return_a_random_variable(); // TODO noise is not correct at the moment -> always the same value after adding noise
-        auto metrics = trie.calculateF1(trajectories);
-        f1 = metrics[0];
+        // double f1_noise = lap_fnr.return_a_random_variable(); // TODO noise is not correct at the moment -> always the same value after adding noise
+        // auto metrics = trie.calculateF1(trajectories);
+        // f1 = metrics[0];
         
-        if(f1 + f1_noise >= goal_f1) {
+        double recall = values[0] / (values[0] + values[2]); // Sensitivity
+        double precision = values[0] / (values[0] + values[1]);
+        double f1 = (precision + recall > 0.0)
+            ? 2.0 * (precision * recall) / (precision + recall)
+            : 0.0;
+
+        if(f1 >= goal_f1) {
             // Save trie to json file
             std::string json = trie.toJson();
             std::ofstream file("trie.json");
@@ -311,11 +329,6 @@ bool create_trie(TripletMap triplet, double epsilon, const std::vector<Trajector
 
 // Function to create a from a triplet map and trajectories, without rejection sampling
 bool create_trie_no_rejection(TripletMap triplet, double epsilon, const std::vector<Trajectory>& trajectories) {
-    
-    // initialize Laplace noise generator
-    std::random_device rd;
-    Laplace laplace(rd());
-
     // noise all triplet counts, using Laplace noise
     triplet = noise_triplets(triplet, epsilon);
 
@@ -369,14 +382,15 @@ EvalResult evaluate(TripletMap triplet, double epsilon, const std::vector<Trajec
 
     // double epsilon = 0.1;       // Adjust epsilon as needed.
     double sensitivity = 1.0;   // Typically 1 for count queries.
-    double delta = 1e-8;   // Adjust delta as needed.
     double gamma = 0.01;
     double e_0 = 0.01;
+    epsilon = epsilon -e_0; // Set epsilon for Laplace noise
+    double e_fnr = epsilon * 0.1;
+    double e_cnt = epsilon * 0.9;
 
     int T = static_cast<int>(std::max((1.0 / gamma) * std::log(2.0 / e_0), 1.0 / (std::exp(1.0) * gamma)));
 
-    double goal_f1 = 0.95;
-    double f1 = 0.0;
+    double goal_f1 = 0.84;
     double fit = 0.0;
     TripletMap original_triplet = triplet; // keep original clean
     TripletMap k_selected;
@@ -390,16 +404,16 @@ EvalResult evaluate(TripletMap triplet, double epsilon, const std::vector<Trajec
     {
         // initialize Laplace noise generator
         std::random_device rd;
-        Laplace laplace(rd());
+        Laplace laplace(sensitivity/e_fnr, rd());
 
         // reset triplet to original for each iteration
         TripletMap triplet_noised = original_triplet;
 
         // noise all triplet counts, using Laplace noise
-        triplet_noised = noise_triplets(triplet_noised, epsilon);
+        triplet_noised = noise_triplets(triplet_noised, e_cnt);
         
         // select significant triplets
-        k_selected = select_significant_triplets(triplet_noised, epsilon); // Select top K triplets
+        k_selected = select_significant_triplets(triplet_noised, e_cnt); // Select top K triplets
 
         // Create a trie
         Trie trie;
@@ -407,30 +421,63 @@ EvalResult evaluate(TripletMap triplet, double epsilon, const std::vector<Trajec
             trie.insert(entry.first, entry.second);
         }
         
-        double f1_noise = laplace.return_a_random_variable();
-        auto metrics = trie.calculateF1(trajectories); // Get array of metrics (F1, precision, recall)
-        f1 = metrics[0];
+        std::array<double, 4> values = trie.calculateConfusionMatrix(trajectories); // Get tp, fp, fn, tn
+        std::array<double, 4> values_orig = values;
+
+        // noise the values using Laplace noise
+        for (size_t i = 0; i < values.size(); ++i) {
+            double noise = laplace.return_a_random_variable();
+            // clip counts at zero. -> negative counts are unlikely, either a station is taken or not.
+            values[i] = std::max(0.0, values[i] + noise);
+        }
+
+        double recall = values[0] / (values[0] + values[2]); // Sensitivity
+        double precision = values[0] / (values[0] + values[1]);
+        double f1 = (precision + recall > 0.0)
+            ? 2.0 * (precision * recall) / (precision + recall)
+            : 0.0;
         
-        if (f1 + f1_noise >= goal_f1) {
-            fit = trie.calculateFitness(trajectories);
+        if (f1 >= goal_f1) {
+            double recall_orig = values_orig[0] / (values_orig[0] + values_orig[2]); // Sensitivity
+            double precision_orig = values_orig[0] / (values_orig[0] + values_orig[1]);
+            double f1_orig = (precision_orig + recall_orig > 0.0)
+                ? 2.0 * (precision_orig * recall_orig) / (precision_orig + recall_orig)
+                : 0.0;
+            double specificity = values_orig[3] / (values_orig[1] + values_orig[3]);
+            double npv = values_orig[3] / (values_orig[3] + values_orig[2]);
+            double accuracy = (values_orig[0] + values_orig[3]) / (values_orig[0] + values_orig[1] + values_orig[2] + values_orig[3]);
+            double jaccard = values_orig[0] / (values_orig[0] + values_orig[1] + values_orig[2]);
+            double mcc = (values_orig[0] * values_orig[3] - values_orig[1] * values_orig[2]) / 
+                        std::sqrt((values[0] + values_orig[1]) * (values_orig[0] + values_orig[2]) * (values_orig[3] + values_orig[1]) * (values_orig[3] + values_orig[2]));
+            double fnr = values_orig[2] / (values_orig[0] + values_orig[2]);
+            double p4 = 4.0 / (1.0/precision_orig + 1.0/recall + 1.0/specificity + 1.0/npv);
+
             auto errors = trie.evaluateCountQueries(trajectories, 10000, 20);
+            fit = trie.calculateFitness(trajectories);
 
             // Return the eval result if trie is accepted
             return EvalResult{
                 .fit = fit,
-                .f1 = f1,
-                .precision = metrics[1],
-                .recall = metrics[2],
-                .errors = errors
+                .f1 = f1_orig,
+                .precision = precision_orig,
+                .recall = recall_orig,
+                .errors = errors,
+                .specificty = specificity,
+                .npv = npv,
+                .accuracy = accuracy,
+                .jaccard = jaccard,
+                .mcc = mcc,
+                .fnr = fnr,
+                .p4 = p4,
             };
         } else if (dis(gen) <= gamma) {
             // Return empty pair with probability gamma
-            return EvalResult{ 0.0, 0.0, 0.0, 0.0, {0,0,0,0} };
+            return EvalResult{ 0.0, 0.0, 0.0, 0.0, {0,0,0,0}, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
         }
     }
     
     // Return empty pair if no trie was created
-    return EvalResult{ 0.0, 0.0,0.0, 0.0, {0,0,0,0} };
+    return EvalResult{ 0.0, 0.0, 0.0, 0.0, {0,0,0,0}, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
 }
 
 // Function to eval trie without rejection sampling
@@ -438,7 +485,7 @@ EvalResult evaluate_no_rejection(TripletMap triplet, double epsilon, const std::
     
     // initialize Laplace noise generator
     std::random_device rd;
-    Laplace laplace(rd());
+    Laplace laplace(1.0/epsilon, rd());
 
     // noise all triplet counts, using Laplace noise
     triplet = noise_triplets(triplet, epsilon);
@@ -501,7 +548,7 @@ TripletMap noise_triplets(const TripletMap& triplets, double epsilon) {
 
     // add laplace noise to the counts
     std::random_device rd;
-    Laplace laplace(rd());
+    Laplace laplace(scale, rd());
 
     // Iterate over all triplet counts and add Laplace noise.
     TripletMap noisy_triplet_counts;
@@ -520,12 +567,23 @@ TripletMap select_significant_triplets(
 ) {
     // Compute std() of the Laplace distribution
     // sigma = sqrt(2)*2 / epsilon
-    const double sigma = std::sqrt(2.0) / epsilon;
+
+    // random double between 1 and std::sqrt(2.0) / epsilon
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_real_distribution<> dis(0.0, std::sqrt(2.0) / epsilon);
+    // Generate a random value
+    double random_value = dis(gen);
+
+    double delta = 0.5 * std::exp(-epsilon * random_value);
+
+    // const double sigma = std::sqrt(2.0) / epsilon;
+    const double threshold = 1.0/epsilon * std::log(1.0/(2*delta)); // 0.5525855
 
     // Filter triplet counts based on the threshold sigma
     TripletMap result;
     for (const auto& [triplet, count] : triplet_counts) {
-        if (count > sigma) {
+        if (count >= threshold) {
             result[triplet] = count;
         }
     }

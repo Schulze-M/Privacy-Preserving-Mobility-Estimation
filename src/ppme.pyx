@@ -41,6 +41,13 @@ cdef extern from "./cpp_trie/include/main.h":
         double precision
         double recall
         vector[double] errors
+        double specificty
+        double npv
+        double accuracy
+        double jaccard
+        double mcc
+        double fnr
+        double p4
 
     ctypedef vector[Station] Trajectory
     ctypedef unordered_map[Station, vector[CountStation]] PrefixMap
@@ -269,7 +276,11 @@ cdef void evaluate_trie(TripletMap triplet, vector[Trajectory] traject, int num_
     # Initialize CSV file
     with open('../results/data.csv', mode='w', newline='', encoding='utf-8') as df:
         writer = csv.writer(df)
-        writer.writerow(['eps','mean_fit','std_fit','mean_f1','std_f1', 'mean_prec', 'std_prec', 'mean_rec', 'std_rec', 'num_evals'])
+        writer.writerow(['eps','mean_fit','std_fit','mean_f1','std_f1', 
+        'mean_prec', 'std_prec', 'mean_rec', 'std_rec', 'mean_acc', 'std_acc',
+        'mean_specificity', 'std_specificity', 'mean_npv', 'std_npv', 'mean_jaccard',
+        'std_jaccard', 'mean_mcc', 'std_mcc', 'mean_fnr', 'std_fnr', 'mean_p4', 'std_p4',
+        'num_evals'])
 
     with open('../results/errors.csv', mode='w', newline='', encoding='utf-8') as ef:
         writer = csv.writer(ef)
@@ -285,6 +296,13 @@ cdef void evaluate_trie(TripletMap triplet, vector[Trajectory] traject, int num_
         precision = []
         recall = []
         errors = []
+        specificty = []
+        npv = []
+        accuracy = []
+        jaccard = []
+        mcc = []
+        fnr = []
+        p4 = []
         # Evaluate the triplet map
         for i in range(num_evals):
             result = evaluate(triplet=triplet, epsilon=eps, trajectories=traject)
@@ -293,34 +311,109 @@ cdef void evaluate_trie(TripletMap triplet, vector[Trajectory] traject, int num_
             precision.append(result.precision)
             recall.append(result.recall)
             errors.append([result.errors[j] for j in range(5)])
+            specificty.append(result.specificty)
+            npv.append(result.npv)
+            accuracy.append(result.accuracy)
+            jaccard.append(result.jaccard)
+            mcc.append(result.mcc)
+            fnr.append(result.fnr)
+            p4.append(result.p4)
+
+        fit_arr         = np.array(fit,         dtype=np.float128)
+        f1_arr          = np.array(f1,          dtype=np.float128)
+        precision_arr   = np.array(precision,   dtype=np.float128)
+        recall_arr      = np.array(recall,      dtype=np.float128)
+        specificty_arr  = np.array(specificty,  dtype=np.float128)
+        npv_arr         = np.array(npv,         dtype=np.float128)
+        accuracy_arr    = np.array(accuracy,    dtype=np.float128)
+        jaccard_arr     = np.array(jaccard,     dtype=np.float128)
+        mcc_arr         = np.array(mcc,         dtype=np.float128)
+        fnr_arr         = np.array(fnr,         dtype=np.float128)
+        p4_arr          = np.array(p4,          dtype=np.float128)
+
+        print(np.count_nonzero(fit_arr))
+
+        # Now compute means without overflow
+        mean_fit         = fit_arr.mean()
+        mean_f1          = f1_arr.mean()
+        mean_precision   = precision_arr.mean()
+        mean_recall      = recall_arr.mean()
+        mean_specificity = specificty_arr.mean()
+        mean_npv         = npv_arr.mean()
+        mean_accuracy    = accuracy_arr.mean()
+        mean_jaccard     = jaccard_arr.mean()
+        mean_mcc         = mcc_arr.mean()
+        mean_fnr         = fnr_arr.mean()
+        mean_p4          = p4_arr.mean()
+
+        # Compute population standard deviations
+        std_fit          = fit_arr.std(ddof=0)
+        std_f1           = f1_arr.std(ddof=0)
+        std_precision    = precision_arr.std(ddof=0)
+        std_recall       = recall_arr.std(ddof=0)
+        std_specificity  = specificty_arr.std(ddof=0)
+        std_npv          = npv_arr.std(ddof=0)
+        std_accuracy     = accuracy_arr.std(ddof=0)
+        std_jaccard      = jaccard_arr.std(ddof=0)
+        std_mcc          = mcc_arr.std(ddof=0)
+        std_fnr          = fnr_arr.std(ddof=0)
+        std_p4           = p4_arr.std(ddof=0)
             
         # get mean of results
-        mean = np.mean(fit)
-        mean_f1 = np.mean(f1)
-        mean_precision = np.mean(precision)
-        mean_recall = np.mean(recall)
+        # mean = np.mean(fit)
+        # mean_f1 = np.mean(f1)
+        # mean_precision = np.mean(precision)
+        # mean_recall = np.mean(recall)
+        # mean_specificity = np.mean(specificty)
+        # mean_npv = np.mean(npv)
+        # mean_accuracy = np.mean(accuracy)
+        # mean_jaccard = np.mean(jaccard)
+        # mean_mcc = np.mean(mcc)
+        # mean_fnr = np.mean(fnr)
+        # mean_p4 = np.mean(p4)
         # get mean of errors
-        mean_errors = np.mean(np.array(errors), axis=0)
-        
-        # get std of results
-        std = np.std(fit)
-        std_f1 = np.std(f1)
-        std_precision = np.std(precision)
-        std_recall = np.std(recall)
+        mean_errors = np.mean(np.array(errors, dtype=np.float128), axis=0)
+        # 
+        # # get std of results
+        # std = np.std(fit)
+        # std_f1 = np.std(f1)
+        # std_precision = np.std(precision)
+        # std_recall = np.std(recall)
+        # std_specificity = np.std(specificty)
+        # std_npv = np.std(npv)
+        # std_accuracy = np.std(accuracy)
+        # std_jaccard = np.std(jaccard)
+        # std_mcc = np.std(mcc)
+        # std_fnr = np.std(fnr)
+        # std_p4 = np.std(p4)
         # get std of errors
-        std_errors = np.std(np.array(errors), axis=0)
+        std_errors = np.std(np.array(errors, dtype=np.float128), axis=0)
 
         # Save results to a dictionary
         result_dict = {
             "eps":      eps,
-            "mean_fit": mean,
-            "std_fit":  std,
+            "mean_fit": mean_fit,
+            "std_fit":  std_fit,
             "mean_f1":  mean_f1,
             "std_f1":   std_f1,
             "mean_prec": mean_precision,
             "std_prec": std_precision,
             "mean_rec": mean_recall,
             "std_rec":  std_recall,
+            "mean_acc": mean_accuracy,
+            "std_acc": std_accuracy,
+            "mean_specificity": mean_specificity,
+            "std_specificity": std_specificity,
+            "mean_npv": mean_npv,
+            "std_npv": std_npv,
+            "mean_jaccard": mean_jaccard,
+            "std_jaccard": std_jaccard,
+            "mean_mcc": mean_mcc,
+            "std_mcc": std_mcc,
+            "mean_fnr": mean_fnr,
+            "std_fnr": std_fnr,
+            "mean_p4": mean_p4,
+            "std_p4": std_p4,
             "num_evals": num_evals,
         }
 
