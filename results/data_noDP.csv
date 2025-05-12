@@ -1,2 +1,2 @@
-eps,mean_fit,std_fit,mean_f1,std_f1,mean_prec,std_prec,mean_rec,std_rec,num_evals
-inf,1.0,0.0,1.0,0.0,1.0,0.0,1.0,0.0,100
+eps,mean_fit,std_fit,mean_f1,std_f1,mean_prec,std_prec,mean_rec,std_rec,mean_acc,std_acc,mean_specificity,std_specificity,mean_npv,std_npv,mean_jaccard,std_jaccard,mean_mcc,std_mcc,mean_fnr,std_fnr,mean_p4,std_p4,num_evals
+inf,1.0,0.0,1.0,0.0,1.0,0.0,1.0,0.0,1.0,0.0,nan,nan,nan,nan,1.0,0.0,nan,nan,0.0,0.0,nan,nan,100

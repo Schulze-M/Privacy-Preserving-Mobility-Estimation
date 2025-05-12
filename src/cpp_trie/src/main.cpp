@@ -265,6 +265,7 @@ bool create_trie(TripletMap triplet, double epsilon, const std::vector<Trajector
             trie.insert(entry.first, entry.second);
         }
 
+        // Evaluate the trie using the trajectories -> calculate confusion matrix
         std::array<double, 4> values = trie.calculateConfusionMatrix(trajectories); // Get tp, fp, fn, tn
 
         // noise the values using Laplace noise
@@ -273,18 +274,15 @@ bool create_trie(TripletMap triplet, double epsilon, const std::vector<Trajector
             // clip counts at zero. -> negative counts are unlikely, either a station is taken or not.
             values[i] = std::max(0.0, values[i] + noise);
         }
-
-        // trie.print(); // Print the trie
-        // double f1_noise = lap_fnr.return_a_random_variable(); // TODO noise is not correct at the moment -> always the same value after adding noise
-        // auto metrics = trie.calculateF1(trajectories);
-        // f1 = metrics[0];
         
+        // Calculate F1 score
         double recall = values[0] / (values[0] + values[2]); // Sensitivity
         double precision = values[0] / (values[0] + values[1]);
         double f1 = (precision + recall > 0.0)
             ? 2.0 * (precision * recall) / (precision + recall)
             : 0.0;
 
+        // If the F1 score is above the goal, save the trie and return
         if(f1 >= goal_f1) {
             // Save trie to json file
             std::string json = trie.toJson();
@@ -384,14 +382,15 @@ EvalResult evaluate(TripletMap triplet, double epsilon, const std::vector<Trajec
     double sensitivity = 1.0;   // Typically 1 for count queries.
     double gamma = 0.01;
     double e_0 = 0.01;
+    
     epsilon = epsilon -e_0; // Set epsilon for Laplace noise
     double e_fnr = epsilon * 0.1;
     double e_cnt = epsilon * 0.9;
 
+    // Calculate T based on the provided formula -> used to get the number of iterations
     int T = static_cast<int>(std::max((1.0 / gamma) * std::log(2.0 / e_0), 1.0 / (std::exp(1.0) * gamma)));
 
-    double goal_f1 = 0.84;
-    double fit = 0.0;
+    double goal_f1 = 0.9;
     TripletMap original_triplet = triplet; // keep original clean
     TripletMap k_selected;
 
@@ -450,10 +449,10 @@ EvalResult evaluate(TripletMap triplet, double epsilon, const std::vector<Trajec
             double mcc = (values_orig[0] * values_orig[3] - values_orig[1] * values_orig[2]) / 
                         std::sqrt((values[0] + values_orig[1]) * (values_orig[0] + values_orig[2]) * (values_orig[3] + values_orig[1]) * (values_orig[3] + values_orig[2]));
             double fnr = values_orig[2] / (values_orig[0] + values_orig[2]);
-            double p4 = 4.0 / (1.0/precision_orig + 1.0/recall + 1.0/specificity + 1.0/npv);
+            double p4 = 4.0 / (1.0/precision_orig + 1.0/recall_orig + 1.0/specificity + 1.0/npv);
 
             auto errors = trie.evaluateCountQueries(trajectories, 10000, 20);
-            fit = trie.calculateFitness(trajectories);
+            double fit = trie.calculateFitness(trajectories);
 
             // Return the eval result if trie is accepted
             return EvalResult{
@@ -499,19 +498,38 @@ EvalResult evaluate_no_rejection(TripletMap triplet, double epsilon, const std::
         trie.insert(entry.first, entry.second);
     }
 
-    double fit = 0.0;
-    auto metrics = trie.calculateF1(trajectories); // Get array of metrics (F1, precision, recall)
+    std::array<double, 4> values = trie.calculateConfusionMatrix(trajectories);
+    double recall = values[0] / (values[0] + values[2]); // Sensitivity
+    double precision = values[0] / (values[0] + values[1]);
+    double f1 = (precision + recall > 0.0)
+        ? 2.0 * (precision * recall) / (precision + recall)
+        : 0.0;
+    double specificity = values[3] / (values[1] + values[3]);
+    double npv = values[3] / (values[3] + values[2]);
+    double accuracy = (values[0] + values[3]) / (values[0] + values[1] + values[2] + values[3]);
+    double jaccard = values[0] / (values[0] + values[1] + values[2]);
+    double mcc = (values[0] * values[3] - values[1] * values[2]) / 
+                std::sqrt((values[0] + values[1]) * (values[0] + values[2]) * (values[3] + values[1]) * (values[3] + values[2]));
+    double fnr = values[2] / (values[0] + values[2]);
+    double p4 = 4.0 / (1.0/precision + 1.0/recall + 1.0/specificity + 1.0/npv);
     
-    fit = trie.calculateFitness(trajectories);
+    double fit = trie.calculateFitness(trajectories);
     
     auto errors = trie.evaluateCountQueries(trajectories, 10000, 20);
 
     return EvalResult{
-        .fit = fit,
-        .f1 = metrics[0],
-        .precision = metrics[1],
-        .recall = metrics[2],
-        .errors = errors
+                .fit = fit,
+                .f1 = f1,
+                .precision = precision,
+                .recall = recall,
+                .errors = errors,
+                .specificty = specificity,
+                .npv = npv,
+                .accuracy = accuracy,
+                .jaccard = jaccard,
+                .mcc = mcc,
+                .fnr = fnr,
+                .p4 = p4,
     };
 }
 
@@ -524,19 +542,38 @@ EvalResult evaluate_no_noise(TripletMap triplet, const std::vector<Trajectory>& 
         trie.insert(entry.first, entry.second);
     }
 
-    double fit = 0.0;
-    auto metrics = trie.calculateF1(trajectories); // Get array of metrics (F1, precision, recall)
+    std::array<double, 4> values = trie.calculateConfusionMatrix(trajectories);
+    double recall = values[0] / (values[0] + values[2]); // Sensitivity
+    double precision = values[0] / (values[0] + values[1]);
+    double f1 = (precision + recall > 0.0)
+        ? 2.0 * (precision * recall) / (precision + recall)
+        : 0.0;
+    double specificity = values[3] / (values[1] + values[3]);
+    double npv = values[3] / (values[3] + values[2]);
+    double accuracy = (values[0] + values[3]) / (values[0] + values[1] + values[2] + values[3]);
+    double jaccard = values[0] / (values[0] + values[1] + values[2]);
+    double mcc = (values[0] * values[3] - values[1] * values[2]) / 
+                std::sqrt((values[0] + values[1]) * (values[0] + values[2]) * (values[3] + values[1]) * (values[3] + values[2]));
+    double fnr = values[2] / (values[0] + values[2]);
+    double p4 = 4.0 / (1.0/precision + 1.0/recall + 1.0/specificity + 1.0/npv);
     
-    fit = trie.calculateFitness(trajectories);
+    double fit = trie.calculateFitness(trajectories);
     
     auto errors = trie.evaluateCountQueries(trajectories, 10000, 20);
 
     return EvalResult{
-        .fit = fit,
-        .f1 = metrics[0],
-        .precision = metrics[1],
-        .recall = metrics[2],
-        .errors = errors
+                .fit = fit,
+                .f1 = f1,
+                .precision = precision,
+                .recall = recall,
+                .errors = errors,
+                .specificty = specificity,
+                .npv = npv,
+                .accuracy = accuracy,
+                .jaccard = jaccard,
+                .mcc = mcc,
+                .fnr = fnr,
+                .p4 = p4,
     };
 }
 
