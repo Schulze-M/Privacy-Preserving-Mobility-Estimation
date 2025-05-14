@@ -43,6 +43,10 @@ struct EvalResult {
     double f1;
     double precision;
     double recall;
+    double tp;
+    double fp;
+    double fn;
+    double tn;
     std::vector<double> errors;
     double specificty;
     double npv;

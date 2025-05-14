@@ -40,6 +40,10 @@ cdef extern from "./cpp_trie/include/main.h":
         double f1
         double precision
         double recall
+        double tp
+        double fp
+        double fn
+        double tn
         vector[double] errors
         double specificty
         double npv
@@ -277,7 +281,9 @@ cdef void evaluate_trie(TripletMap triplet, vector[Trajectory] traject, int num_
     with open('../results/data.csv', mode='w', newline='', encoding='utf-8') as df:
         writer = csv.writer(df)
         writer.writerow(['eps','mean_fit','std_fit','mean_f1','std_f1', 
-        'mean_prec', 'std_prec', 'mean_rec', 'std_rec', 'mean_acc', 'std_acc',
+        'mean_prec', 'std_prec', 'mean_rec', 'std_rec', "mean_tp", "std_tp",
+        'mean_fp', 'std_fp', 'mean_fn', 'std_fn', 'mean_tn', 'std_tn',
+        'mean_acc', 'std_acc',
         'mean_specificity', 'std_specificity', 'mean_npv', 'std_npv', 'mean_jaccard',
         'std_jaccard', 'mean_mcc', 'std_mcc', 'mean_fnr', 'std_fnr', 'mean_p4', 'std_p4',
         'num_evals'])
@@ -295,6 +301,10 @@ cdef void evaluate_trie(TripletMap triplet, vector[Trajectory] traject, int num_
         f1 = []
         precision = []
         recall = []
+        tp = []
+        fp = []
+        tn = []
+        fn = []
         errors = []
         specificty = []
         npv = []
@@ -310,6 +320,10 @@ cdef void evaluate_trie(TripletMap triplet, vector[Trajectory] traject, int num_
             f1.append(result.f1)
             precision.append(result.precision)
             recall.append(result.recall)
+            tp.append(result.tp)
+            fp.append(result.fp)
+            tn.append(result.tn)
+            fn.append(result.fn)
             errors.append([result.errors[j] for j in range(5)])
             specificty.append(result.specificty)
             npv.append(result.npv)
@@ -324,6 +338,10 @@ cdef void evaluate_trie(TripletMap triplet, vector[Trajectory] traject, int num_
         f1_arr          = np.array(f1,          dtype=np.float128)
         precision_arr   = np.array(precision,   dtype=np.float128)
         recall_arr      = np.array(recall,      dtype=np.float128)
+        tp_arr          = np.array(tp,          dtype=np.float128)
+        fp_arr          = np.array(fp,          dtype=np.float128)
+        tn_arr          = np.array(tn,          dtype=np.float128)
+        fn_arr          = np.array(fn,          dtype=np.float128)
         specificty_arr  = np.array(specificty,  dtype=np.float128)
         npv_arr         = np.array(npv,         dtype=np.float128)
         accuracy_arr    = np.array(accuracy,    dtype=np.float128)
@@ -337,6 +355,10 @@ cdef void evaluate_trie(TripletMap triplet, vector[Trajectory] traject, int num_
         mean_f1          = f1_arr.mean()
         mean_precision   = precision_arr.mean()
         mean_recall      = recall_arr.mean()
+        mean_tp          = tp_arr.mean()
+        mean_fp          = fp_arr.mean()
+        mean_tn          = tn_arr.mean()
+        mean_fn          = fn_arr.mean()
         mean_specificity = specificty_arr.mean()
         mean_npv         = npv_arr.mean()
         mean_accuracy    = accuracy_arr.mean()
@@ -350,6 +372,10 @@ cdef void evaluate_trie(TripletMap triplet, vector[Trajectory] traject, int num_
         std_f1           = f1_arr.std(ddof=0)
         std_precision    = precision_arr.std(ddof=0)
         std_recall       = recall_arr.std(ddof=0)
+        std_tp           = tp_arr.std(ddof=0)
+        std_fp           = fp_arr.std(ddof=0)
+        std_tn           = tn_arr.std(ddof=0)
+        std_fn           = fn_arr.std(ddof=0)
         std_specificity  = specificty_arr.std(ddof=0)
         std_npv          = npv_arr.std(ddof=0)
         std_accuracy     = accuracy_arr.std(ddof=0)
@@ -375,6 +401,14 @@ cdef void evaluate_trie(TripletMap triplet, vector[Trajectory] traject, int num_
             "std_prec": std_precision,
             "mean_rec": mean_recall,
             "std_rec":  std_recall,
+            "mean_tp": mean_tp,
+            "std_tp": std_tp,
+            "mean_fp": mean_fp,
+            "std_fp": std_fp,
+            "mean_fn": mean_fn,
+            "std_fn": std_fn,
+            "mean_tn": mean_tn,
+            "std_tn": std_tn,
             "mean_acc": mean_accuracy,
             "std_acc": std_accuracy,
             "mean_specificity": mean_specificity,
@@ -443,7 +477,9 @@ cdef void eval_no_reject_trie(TripletMap triplet, vector[Trajectory] traject, in
     with open('../results/data_no_reject.csv', mode='w', newline='', encoding='utf-8') as df:
         writer = csv.writer(df)
         writer.writerow(['eps','mean_fit','std_fit','mean_f1','std_f1', 
-        'mean_prec', 'std_prec', 'mean_rec', 'std_rec', 'mean_acc', 'std_acc',
+        'mean_prec', 'std_prec', 'mean_rec', 'std_rec', 'mean_tp', 'std_tp',
+        'mean_fp', 'std_fp', 'mean_fn', 'std_fn', 'mean_tn', 'std_tn',
+         'mean_acc', 'std_acc',
         'mean_specificity', 'std_specificity', 'mean_npv', 'std_npv', 'mean_jaccard',
         'std_jaccard', 'mean_mcc', 'std_mcc', 'mean_fnr', 'std_fnr', 'mean_p4', 'std_p4',
         'num_evals'])
@@ -461,6 +497,10 @@ cdef void eval_no_reject_trie(TripletMap triplet, vector[Trajectory] traject, in
         f1 = []
         precision = []
         recall = []
+        tp = []
+        fp = []
+        tn = []
+        fn = []
         errors = []
         specificty = []
         npv = []
@@ -476,6 +516,10 @@ cdef void eval_no_reject_trie(TripletMap triplet, vector[Trajectory] traject, in
             f1.append(result.f1)
             precision.append(result.precision)
             recall.append(result.recall)
+            tp.append(result.tp)
+            fp.append(result.fp)
+            tn.append(result.tn)
+            fn.append(result.fn)
             errors.append([result.errors[j] for j in range(5)])
             specificty.append(result.specificty)
             npv.append(result.npv)
@@ -490,6 +534,10 @@ cdef void eval_no_reject_trie(TripletMap triplet, vector[Trajectory] traject, in
         f1_arr          = np.array(f1,          dtype=np.float128)
         precision_arr   = np.array(precision,   dtype=np.float128)
         recall_arr      = np.array(recall,      dtype=np.float128)
+        tp_arr          = np.array(tp,          dtype=np.float128)
+        fp_arr          = np.array(fp,          dtype=np.float128)
+        tn_arr          = np.array(tn,          dtype=np.float128)
+        fn_arr          = np.array(fn,          dtype=np.float128)
         specificty_arr  = np.array(specificty,  dtype=np.float128)
         npv_arr         = np.array(npv,         dtype=np.float128)
         accuracy_arr    = np.array(accuracy,    dtype=np.float128)
@@ -503,6 +551,10 @@ cdef void eval_no_reject_trie(TripletMap triplet, vector[Trajectory] traject, in
         mean_f1          = f1_arr.mean()
         mean_precision   = precision_arr.mean()
         mean_recall      = recall_arr.mean()
+        mean_tp          = tp_arr.mean()
+        mean_fp          = fp_arr.mean()
+        mean_tn          = tn_arr.mean()
+        mean_fn          = fn_arr.mean()
         mean_specificity = specificty_arr.mean()
         mean_npv         = npv_arr.mean()
         mean_accuracy    = accuracy_arr.mean()
@@ -516,6 +568,10 @@ cdef void eval_no_reject_trie(TripletMap triplet, vector[Trajectory] traject, in
         std_f1           = f1_arr.std(ddof=0)
         std_precision    = precision_arr.std(ddof=0)
         std_recall       = recall_arr.std(ddof=0)
+        std_tp           = tp_arr.std(ddof=0)
+        std_fp           = fp_arr.std(ddof=0)
+        std_tn           = tn_arr.std(ddof=0)
+        std_fn           = fn_arr.std(ddof=0)
         std_specificity  = specificty_arr.std(ddof=0)
         std_npv          = npv_arr.std(ddof=0)
         std_accuracy     = accuracy_arr.std(ddof=0)
@@ -541,6 +597,14 @@ cdef void eval_no_reject_trie(TripletMap triplet, vector[Trajectory] traject, in
             "std_prec": std_precision,
             "mean_rec": mean_recall,
             "std_rec":  std_recall,
+            "mean_tp": mean_tp,
+            "std_tp": std_tp,
+            "mean_fp": mean_fp,
+            "std_fp": std_fp,
+            "mean_fn": mean_fn,
+            "std_fn": std_fn,
+            "mean_tn": mean_tn,
+            "std_tn": std_tn,
             "mean_acc": mean_accuracy,
             "std_acc": std_accuracy,
             "mean_specificity": mean_specificity,
@@ -606,7 +670,9 @@ cdef void eval_no_dp(TripletMap triplet, vector[Trajectory] traject, int num_eva
     with open('../results/data_noDP.csv', mode='w', newline='', encoding='utf-8') as df:
         writer = csv.writer(df)
         writer.writerow(['eps','mean_fit','std_fit','mean_f1','std_f1', 
-        'mean_prec', 'std_prec', 'mean_rec', 'std_rec', 'mean_acc', 'std_acc',
+        'mean_prec', 'std_prec', 'mean_rec', 'std_rec', "mean_tp", "std_tp",
+        'mean_fp', 'std_fp', 'mean_fn', 'std_fn', 'mean_tn', 'std_tn',
+        'mean_acc', 'std_acc',
         'mean_specificity', 'std_specificity', 'mean_npv', 'std_npv', 'mean_jaccard',
         'std_jaccard', 'mean_mcc', 'std_mcc', 'mean_fnr', 'std_fnr', 'mean_p4', 'std_p4',
         'num_evals'])
@@ -622,6 +688,10 @@ cdef void eval_no_dp(TripletMap triplet, vector[Trajectory] traject, int num_eva
     f1 = []
     precision = []
     recall = []
+    tp = []
+    fp = []
+    tn = []
+    fn = []
     errors = []
     specificty = []
     npv = []
@@ -638,6 +708,10 @@ cdef void eval_no_dp(TripletMap triplet, vector[Trajectory] traject, int num_eva
         f1.append(result.f1)
         precision.append(result.precision)
         recall.append(result.recall)
+        tp.append(result.tp)
+        fp.append(result.fp)
+        tn.append(result.tn)
+        fn.append(result.fn)
         errors.append([result.errors[j] for j in range(5)])
         specificty.append(result.specificty)
         npv.append(result.npv)
@@ -652,6 +726,10 @@ cdef void eval_no_dp(TripletMap triplet, vector[Trajectory] traject, int num_eva
     f1_arr          = np.array(f1,          dtype=np.float128)
     precision_arr   = np.array(precision,   dtype=np.float128)
     recall_arr      = np.array(recall,      dtype=np.float128)
+    tp_arr          = np.array(tp,          dtype=np.float128)
+    fp_arr          = np.array(fp,          dtype=np.float128)
+    tn_arr          = np.array(tn,          dtype=np.float128)
+    fn_arr          = np.array(fn,          dtype=np.float128)
     specificty_arr  = np.array(specificty,  dtype=np.float128)
     npv_arr         = np.array(npv,         dtype=np.float128)
     accuracy_arr    = np.array(accuracy,    dtype=np.float128)
@@ -665,6 +743,10 @@ cdef void eval_no_dp(TripletMap triplet, vector[Trajectory] traject, int num_eva
     mean_f1          = f1_arr.mean()
     mean_precision   = precision_arr.mean()
     mean_recall      = recall_arr.mean()
+    mean_tp          = tp_arr.mean()
+    mean_fp          = fp_arr.mean()
+    mean_tn          = tn_arr.mean()
+    mean_fn          = fn_arr.mean()
     mean_specificity = specificty_arr.mean()
     mean_npv         = npv_arr.mean()
     mean_accuracy    = accuracy_arr.mean()
@@ -678,6 +760,10 @@ cdef void eval_no_dp(TripletMap triplet, vector[Trajectory] traject, int num_eva
     std_f1           = f1_arr.std(ddof=0)
     std_precision    = precision_arr.std(ddof=0)
     std_recall       = recall_arr.std(ddof=0)
+    std_tp           = tp_arr.std(ddof=0)
+    std_fp           = fp_arr.std(ddof=0)
+    std_tn           = tn_arr.std(ddof=0)
+    std_fn           = fn_arr.std(ddof=0)
     std_specificity  = specificty_arr.std(ddof=0)
     std_npv          = npv_arr.std(ddof=0)
     std_accuracy     = accuracy_arr.std(ddof=0)
@@ -703,6 +789,14 @@ cdef void eval_no_dp(TripletMap triplet, vector[Trajectory] traject, int num_eva
         "std_prec": std_precision,
         "mean_rec": mean_recall,
         "std_rec":  std_recall,
+        "mean_tp": mean_tp,
+        "std_tp": std_tp,
+        "mean_fp": mean_fp,
+        "std_fp": std_fp,
+        "mean_fn": mean_fn,
+        "std_fn": std_fn,
+        "mean_tn": mean_tn,
+        "std_tn": std_tn,
         "mean_acc": mean_accuracy,
         "std_acc": std_accuracy,
         "mean_specificity": mean_specificity,

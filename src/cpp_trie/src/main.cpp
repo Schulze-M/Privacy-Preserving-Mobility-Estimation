@@ -390,7 +390,7 @@ EvalResult evaluate(TripletMap triplet, double epsilon, const std::vector<Trajec
     // Calculate T based on the provided formula -> used to get the number of iterations
     int T = static_cast<int>(std::max((1.0 / gamma) * std::log(2.0 / e_0), 1.0 / (std::exp(1.0) * gamma)));
 
-    double goal_f1 = 0.9;
+    double goal_f1 = 0.95;
     TripletMap original_triplet = triplet; // keep original clean
     TripletMap k_selected;
 
@@ -460,6 +460,10 @@ EvalResult evaluate(TripletMap triplet, double epsilon, const std::vector<Trajec
                 .f1 = f1_orig,
                 .precision = precision_orig,
                 .recall = recall_orig,
+                .tp = values_orig[0],
+                .fp = values_orig[1],
+                .fn = values_orig[2],
+                .tn = values_orig[3],
                 .errors = errors,
                 .specificty = specificity,
                 .npv = npv,
@@ -471,12 +475,12 @@ EvalResult evaluate(TripletMap triplet, double epsilon, const std::vector<Trajec
             };
         } else if (dis(gen) <= gamma) {
             // Return empty pair with probability gamma
-            return EvalResult{ 0.0, 0.0, 0.0, 0.0, {0,0,0,0}, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
+            return EvalResult{ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, {0,0,0,0}, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
         }
     }
     
     // Return empty pair if no trie was created
-    return EvalResult{ 0.0, 0.0, 0.0, 0.0, {0,0,0,0}, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
+    return EvalResult{ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, {0,0,0,0}, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
 }
 
 // Function to eval trie without rejection sampling
@@ -522,6 +526,10 @@ EvalResult evaluate_no_rejection(TripletMap triplet, double epsilon, const std::
                 .f1 = f1,
                 .precision = precision,
                 .recall = recall,
+                .tp = values[0],
+                .fp = values[1],
+                .fn = values[2],
+                .tn = values[3],
                 .errors = errors,
                 .specificty = specificity,
                 .npv = npv,
@@ -566,6 +574,10 @@ EvalResult evaluate_no_noise(TripletMap triplet, const std::vector<Trajectory>& 
                 .f1 = f1,
                 .precision = precision,
                 .recall = recall,
+                .tp = values[0],
+                .fp = values[1],
+                .fn = values[2],
+                .tn = values[3],
                 .errors = errors,
                 .specificty = specificity,
                 .npv = npv,
@@ -603,19 +615,19 @@ TripletMap select_significant_triplets(
     double epsilon
 ) {
     // Compute std() of the Laplace distribution
-    // sigma = sqrt(2)*2 / epsilon
+    double sigma = sqrt(2.0) / epsilon;
 
     // random double between 1 and std::sqrt(2.0) / epsilon
     std::random_device rd;
     std::mt19937 gen(rd());
     std::uniform_real_distribution<> dis(0.0, std::sqrt(2.0) / epsilon);
     // Generate a random value
-    double random_value = dis(gen);
+    const double threshold = dis(gen);
 
-    double delta = 0.5 * std::exp(-epsilon * random_value);
+    // double delta = 0.5 * std::exp(-epsilon * random_value);
 
-    // const double sigma = std::sqrt(2.0) / epsilon;
-    const double threshold = 1.0/epsilon * std::log(1.0/(2*delta)); // 0.5525855
+    // // const double sigma = std::sqrt(2.0) / epsilon;
+    // const double threshold = 1.0/epsilon * std::log(1.0/(2*delta)); // 0.5525855
 
     // Filter triplet counts based on the threshold sigma
     TripletMap result;
