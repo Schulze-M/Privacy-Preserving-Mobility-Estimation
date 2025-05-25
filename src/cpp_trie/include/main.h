@@ -48,13 +48,9 @@ struct EvalResult {
     double fn;
     double tn;
     std::vector<double> errors;
-    double specificty;
-    double npv;
     double accuracy;
     double jaccard;
-    double mcc;
     double fnr;
-    double p4;
 };
 
 // Custom hash function for Coordinate
@@ -108,20 +104,11 @@ using PrefixMap = std::unordered_map<Station, std::vector<CountStation>>;
 using TripletMap = std::unordered_map<Triplet, double, TripletHash>;
 using StartMap = std::unordered_map<Station, double>;
 
-// Function to process start coordinates
-StartMap process_start(const std::vector<Trajectory>& trajectories);
-
-// Function to process prefixes
-PrefixMap process_prefix(const std::vector<Trajectory>& trajectories);
-
 // Generate Triplets
 TripletMap create_triplet_map(const std::vector<Trajectory>& trajectories);
 
 // Generate a trie
 bool create_trie(TripletMap triplet, double epsilon, const std::vector<Trajectory>& trajectories);
-
-// Function to create a trie without rejection sampling
-bool create_trie_no_rejection(TripletMap triplet, double epsilon, const std::vector<Trajectory>& trajectories);
 
 // Function to create a trie without any noise
 bool create_trie_no_noise(TripletMap triplet, const std::vector<Trajectory>& trajectories);
@@ -129,11 +116,13 @@ bool create_trie_no_noise(TripletMap triplet, const std::vector<Trajectory>& tra
 // Function to evaluate the trie
 EvalResult evaluate(TripletMap triplet, double epsilon, const std::vector<Trajectory>& trajectories);
 
-// Function to evaluate the trie without rejection sampling
-EvalResult evaluate_no_rejection(TripletMap triplet, double epsilon, const std::vector<Trajectory>& trajectories);
-
 // Function to evaluate the trie without any noise
 EvalResult evaluate_no_noise(TripletMap triplet, const std::vector<Trajectory>& trajectories);
+
+// Function to evaluate errors in the trie
+std::vector<double> evalErrors(TripletMap triplet, double epsilon, const std::vector<Trajectory>& trajectories);
+// Function to evaluate errors in the trie without noise
+std::vector<double> evalErrors_noDP(TripletMap triplet, const std::vector<Trajectory>& trajectories);
 
 // Function to process test trajectories
 PrefixMap process_test(const Trajectory trajec, const StartMap start);

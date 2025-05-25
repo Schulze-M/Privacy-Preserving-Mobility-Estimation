@@ -2,13 +2,11 @@ import argparse
 import os
 import pickle
 from pprint import pprint
-import csv
 
-import numpy as np
 import ppme
 
 from datacstructure.trie import PrefixTree as trie
-from utils import validate_coordinates, test_cpp_results, plot_eval_results, plot_error_results, plot_error_results_no_reject, plot_eval_results_no_reject
+from utils import validate_coordinates, test_cpp_results, plot_eval_results, plot_error_results
 
 # Constants
 DATA_FOLDER = '../datasets/'
@@ -61,35 +59,29 @@ def load_data() -> trie:
     with open(trajs_path, 'rb') as file:
         trajs = pickle.load(file)
 
-    # validate the coordinates -> should be (latitude, longitude)
-    # is_normal_coords = validate_coordinates(trajs[0][1], trajs[0][2])
-
-    # # reverse the order of the trajectories for each list in the list, if the coordinates are not normal
-    # if not is_normal_coords:
-    #     trajs = [np.array([[coord[0], coord[2], coord[1]] for coord in array]) for array in trajs]
-
     # create the trie
-    print(len(trajs))      
+    print(len(trajs))
 
     # Create Trie with rejection sampling
     if not args.noReject:
-        trie = ppme.trie(trajs, args.epsilon, args.evaluate, args.number)
+        trie = ppme.trie(trajs, args.trajectory_file.replace('.pkl', ''), args.epsilon, args.evaluate, args.number)
     else:
         # Create trie without rejection sampling
         trie = ppme.no_rejection_trie(trajs, args.epsilon, args.evaluate, args.number)
 
     # Create trie without DP
     if args.noDP:
-        ppme.no_dp_trie(trajs, args.evaluate, args.number)
+        ppme.no_dp_trie(trajs, args.trajectory_file.replace('.pkl', ''), args.evaluate, args.number)
 
     pprint(trie)
 
-    if args.plot:
-        plot_eval_results('../results/data.csv', '../results/')
-        plot_error_results('../results/errors.csv', '../results/')
-        plot_error_results_no_reject('../results/errors_no_reject.csv', '../results/')
-        plot_eval_results_no_reject('../results/data_no_reject.csv', '../results/')
+    dataset_name = args.trajectory_file.replace('.pkl', '')
 
+    if args.plot:
+        plot_eval_results(f'../results/data_{dataset_name}.csv', '../results/')
+        plot_error_results(f'../results/errors_{dataset_name}.csv', '../results/', dataset_name)
+
+    exit(1)
 
 if __name__ == '__main__':
     load_data()

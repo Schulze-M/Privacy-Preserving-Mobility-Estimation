@@ -83,6 +83,9 @@ for trip_id, group in tqdm(list(stop_times.groupby("trip_id")), desc="Processing
         s1, s2 = stops_in_trip[i], stops_in_trip[i+1]
         edge_lines[(s1, s2)].add(line)
 
+# Determine which stops are reachable via at least one ride-edge
+reachable_stop_ids = {s for edge in edge_lines.keys() for s in edge}
+
 #########################################
 # 3. Build the State-Space Graph with Ride-Edges
 #########################################
@@ -156,13 +159,17 @@ def compute_astar_path(G_state, start_state, goal_state):
 
 # Aggregate ride-edge usage over many random A* path computations.
 ride_edge_counts = defaultdict(int)
-
 all_paths = list()
+
+valid_stops = berlin_stops[
+    berlin_stops['stop_id'].isin(reachable_stop_ids)
+]['stop_id'].tolist()
+
 for i in tqdm(range(NUM_PATHS), desc="Computing A* Paths"):
-    start_stop = random.choice(list(berlin_stop_ids))
-    end_stop = random.choice(list(berlin_stop_ids))
+    start_stop = random.choice(list(valid_stops))
+    end_stop = random.choice(list(valid_stops))
     while end_stop == start_stop:
-        end_stop = random.choice(list(berlin_stop_ids))
+        end_stop = random.choice(list(valid_stops))
         
     start_lines = list(node_lines[start_stop])
     end_lines = list(node_lines[end_stop])
@@ -193,9 +200,9 @@ for i in tqdm(range(NUM_PATHS), desc="Computing A* Paths"):
             ride_edge_counts[(u[0], v[0])] += 1
 
 # Save Paths to Pickle File
-with open(f'{DATA_PATH}/paths.pkl', 'wb') as f:
+with open(f'{DATA_PATH}/paths_no_hotspots.pkl', 'wb') as f:
     pickle.dump(all_paths, f)
-print(f"Saved {len(all_paths)} paths to paths.pkl")
+print(f"Saved {len(all_paths)} paths to paths_no_hotspots.pkl")
 
 #########################################
 # 6. Plot Heatmap of the Base Network
@@ -233,7 +240,12 @@ norm_counts = counts / counts.max() if counts.max() > 0 else counts
 
 # Custom colormap from dark orange to deep red
 colors = [
-    "#fd8d3c",  # light orange
+    #"#e5f5e0",  # very light green
+    # "#a1d99b",  # light green
+    "#4c5ced",
+    # "#fee08b",  # pale yellow
+    # "#fc8d59",  # light coral/red
+    # "#fd8d3c",  # light orange
     "#f16913",  # medium orange
     "#e6550d",  # dark orange
     "#e31a1c",  # strong red
@@ -257,7 +269,7 @@ sm = cm.ScalarMappable(cmap=cmap, norm=plt.Normalize(vmin=counts.min(), vmax=cou
 sm.set_array([])
 cbar = plt.colorbar(sm, ax=ax)
 cbar.set_label("Usage (Number of Paths)")
-plt.savefig("heatmap.pdf", format="pdf")
+plt.savefig("heatmap_no_hotspot.pdf", format="pdf")
 plt.show()
 
 # Add each edge from G_base as a polyline on the interactive map

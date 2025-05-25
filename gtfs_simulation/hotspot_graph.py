@@ -103,24 +103,42 @@ all_stop_ids = berlin_stops[
 ].copy()
 
 # Compute distance to center
-center_lat = (lat_min + lat_max) / 2
-center_lon = (lon_min + lon_max) / 2
+center_lat = all_stop_ids['stop_lat'].mean()
+center_lon = all_stop_ids['stop_lon'].mean()
 def dist_to_center(row):
     return haversine(row['stop_lon'], row['stop_lat'], center_lon, center_lat)
 all_stop_ids['dist_to_center'] = all_stop_ids.apply(dist_to_center, axis=1)
 
+# Function to sample points with a minimum mutual distance
+def sample_with_min_distance(candidates, coords_dict, n_samples, min_dist_km):
+    selected = []
+    random.shuffle(candidates)
+    for sid in candidates:
+        if len(selected) >= n_samples:
+            break
+        lon1, lat1 = coords_dict[sid]
+        # check distance to all already selected
+        if all(haversine(lon1, lat1, *coords_dict[other]) >= min_dist_km for other in selected):
+            selected.append(sid)
+    return selected
+
+# Prepare coordinate lookup for stops
+coords = {row['stop_id']: (row['stop_lon'], row['stop_lat']) for _, row in all_stop_ids.iterrows()}
+
 # Sample hotspots from reachable region stops
 num_hotspots = random.randint(15, 30)
-n_central = int(num_hotspots * 0.8)
+n_central = int(num_hotspots * 0.7)
 n_outliers = num_hotspots - n_central
+
+# Candidates sorted by proximity to center
 stops_sorted = all_stop_ids.sort_values('dist_to_center')
-central_candidates = stops_sorted.head(n_central * 2)['stop_id'].tolist()
-outlier_candidates = stops_sorted.tail(int(len(stops_sorted) * 0.2))['stop_id'].tolist()
+central_candidates = stops_sorted.head(n_central * 12)['stop_id'].tolist()
+outlier_candidates = stops_sorted.tail(int(len(stops_sorted) * 0.4))['stop_id'].tolist()
 
 # Ensure enough candidates and sample without replacement
-central_hotspots = random.sample(
-    [s for s in central_candidates if s in reachable_stop_ids],
-    min(n_central, len(central_candidates))
+MIN_CENTRAL_DIST_KM = 0.7
+central_hotspots = sample_with_min_distance(
+    central_candidates, coords, n_central, MIN_CENTRAL_DIST_KM
 )
 outlier_hotspots = random.sample(
     [s for s in outlier_candidates if s in reachable_stop_ids],
@@ -139,24 +157,6 @@ hot_w = (n_non / n_hot) + base_w if n_hot > 0 else base_w
 weights = [hot_w if sid in hotspots else base_w for sid in end_stops]
 probabilities = np.array(weights) / np.sum(weights)
 probabilities = probabilities.flatten()
-
-#########################################
-# 2. Build Base Network (Construct "ride" edges based solely on GTFS connections)
-#########################################
-# edge_lines = defaultdict(set)  # Maps (stop1, stop2) to the set of lines serving that edge
-# node_lines = defaultdict(set)  # Maps stop to the set of lines that serve it
-
-# # Process each trip (with tqdm progress)
-# for trip_id, group in tqdm(list(stop_times.groupby("trip_id")), desc="Processing Trips"):
-#     group = group.sort_values("stop_sequence")
-#     stops_in_trip = group['stop_id'].tolist()
-#     line = group['route_short_name'].iloc[0]  # All stops in this trip share the same line
-#     for stop in stops_in_trip:
-#         node_lines[stop].add(line)
-#     # Only connect in the given (GTFS) direction
-#     for i in range(len(stops_in_trip) - 1):
-#         s1, s2 = stops_in_trip[i], stops_in_trip[i+1]
-#         edge_lines[(s1, s2)].add(line)
 
 #########################################
 # 3. Build the State-Space Graph with Ride-Edges
@@ -233,13 +233,18 @@ def compute_astar_path(G_state, start_state, goal_state):
 ride_edge_counts = defaultdict(int)
 all_paths = list()
 
+valid_stops = berlin_stops[
+    berlin_stops['stop_id'].isin(reachable_stop_ids)
+]['stop_id'].tolist()
+
 for i in tqdm(range(NUM_PATHS), desc="Computing A* Paths"):
-    start_stop = random.choice(list(berlin_stop_ids))
+    start_stop = np.random.choice(valid_stops)
     
     # Weighted end stations
-    end_stop = np.random.choice(end_stops, p=probabilities)
+    hotspots = list(hotspots)
+    end_stop = np.random.choice(hotspots)
     while end_stop == start_stop:
-        end_stop = np.random.choice(end_stops, p=probabilities)
+        end_stop = np.random.choice(hotspots)
         
     start_lines = list(node_lines[start_stop])
     end_lines = list(node_lines[end_stop])
@@ -259,8 +264,6 @@ for i in tqdm(range(NUM_PATHS), desc="Computing A* Paths"):
         mask = np.concatenate(([True], path_station_names[1:] != path_station_names[:-1]))
         cleaned_path = path_station_names[mask]
         all_paths.append(cleaned_path)
-
-    # all_paths.append(cleaned_path)
 
     # Count each ride edge used (direction matters)
     for j in range(len(path) - 1):
@@ -310,7 +313,12 @@ norm_counts = counts / counts.max() if counts.max() > 0 else counts
 
 # Custom colormap from dark orange to deep red
 colors = [
-    "#fd8d3c",  # light orange
+    #"#e5f5e0",  # very light green
+    # "#a1d99b",  # light green
+    "#4c5ced",
+    # "#fee08b",  # pale yellow
+    # "#fc8d59",  # light coral/red
+    # "#fd8d3c",  # light orange
     "#f16913",  # medium orange
     "#e6550d",  # dark orange
     "#e31a1c",  # strong red

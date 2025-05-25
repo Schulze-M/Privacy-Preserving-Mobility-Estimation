@@ -60,14 +60,6 @@ def plot_eval_results(file: str, folder: str):
     '''
     Plot the evaluation results of the C++ implementation
     '''
-
-    # Set the color palette
-    c = mpl.colormaps['tab10'].colors
-
-    # Set the figure size
-    # B x H
-    plt.figure(figsize=(9, 4))
-
     # read the data from the csv file
     df = pd.read_csv(file)
     
@@ -81,185 +73,223 @@ def plot_eval_results(file: str, folder: str):
     y_precision_std= df['std_prec'].values
     y_recall      = df['mean_rec'].values
     y_recall_std  = df['std_rec'].values
+    y_acc     = df['mean_acc'].values
+    y__acc_std = df['std_acc'].values
+    y_jaccard = df['mean_jaccard'].values
+    y_jaccard_std = df['std_jaccard'].values
+    y_fnr = df['mean_fnr'].values
+    y_fnr_std = df['std_fnr'].values
+    y_tp = df['mean_tp'].values
+    y_tp_std = df['std_tp'].values
+    y_fn = df['mean_fn'].values
+    y_fn_std = df['std_fn'].values
     y_baseline = np.ones_like(x)
 
-    # Plot all graphs
-    plt.plot(x, y_fitness, c=c[0], linewidth=2, label="Fitness", marker='.', markersize=12)
-    plt.plot(x, y_f1, c=c[2], linewidth=2, label="F1-Score", marker='.', markersize=12)
-    plt.plot(x, y_precision, c=c[1], linewidth=2, label="Precision", marker='.', markersize=12)
-    plt.plot(x, y_recall, c=c[3], linewidth=2, label="Recall", marker='.', markersize=12)
-    plt.plot(x, y_baseline, c='black', linewidth=2, label="Baseline")
-
-    # Plot standard deviation
-    plt.fill_between(x=x, y1=y_fitness - y_fitness_std, y2=y_fitness + y_fitness_std, alpha=0.1, facecolor=c[0])
-    plt.fill_between(x=x, y1=y_f1 - y_f1_std, y2=y_f1 + y_f1_std, alpha=0.125, facecolor=c[2])
-    plt.fill_between(x=x, y1=y_precision - y_precision_std, y2=y_precision + y_precision_std, alpha=0.125, facecolor=c[1])
-    plt.fill_between(x=x, y1=y_recall - y_recall_std, y2=y_recall + y_recall_std, alpha=0.125, facecolor=c[3])
-
-    # Label the axes:
-    plt.xlabel("$\\varepsilon$", fontsize=14)
-    plt.ylabel("Eval Results", fontsize=14)
-
-    # Limits of the axes:
-    plt.xlim(0.05, 1.05)
-    plt.ylim(0.0, 1.15)
-    plt.xticks([0.1, 0.2, 0.5, 0.8, 1.0])
-    plt.yticks(fontsize=12)
-    plt.xticks(fontsize=12) # rotation=-45
-    
-    plt.gca().yaxis.set_major_formatter(StrMethodFormatter('{x:,.2f}'))
-
-    # Show the legend on the plot:
-    plt.legend(loc='best', ncol=7, fontsize=12, frameon=False, handlelength=1.5, handleheight=0.5, borderpad=0.5, labelspacing=0.5)
-    
-    # Save the figure
-    plt.savefig(f'{folder}Results.pdf', bbox_inches='tight', pad_inches=0)
-
-def plot_error_results(file: str, folder: str):
-    '''
-    Plot the error results of the C++ implementation
-    '''
-
-    # Set the color palette
-    #  c = mpl.colormaps['tab10'].colors
-
-    # Set the figure size
-    # B x H
-    plt.figure(figsize=(9, 4))
-
-    # read the data from the csv file
-    df = pd.read_csv(file)
-    df_base = pd.read_csv('../results/errors_noDP.csv')
-    
-    # Plot
-    plt.figure()
-    for length, group in df.groupby('subset_max_length'):
-        x = group['eps']
-        y = group['mean_error']
-        err = group['std_error']
-        # plot mean line
-        plt.plot(x, y, marker='o', label=f'max length = {length}')
-        # fill ± std deviation
-        plt.fill_between(x, y - err, y + err, alpha=0.3)
-
-    for length, group in df_base.groupby('subset_max_length'):
-        x = group['eps']
-        y = group['mean_error']
-        err = group['std_error']
-        # plot mean line
-        plt.plot(x, y, marker='x', label=f'max length = {length} (Baseline)')
-        # fill ± std deviation
-        plt.fill_between(x, y - err, y + err, alpha=0.3)
-
-    # Plot standard deviation
-    # plt.fill_between(x=x, y1=y_fitness - y_fitness_std, y2=y_fitness + y_fitness_std, alpha=0.1, facecolor=c[0])
-    # plt.fill_between(x=x, y1=y_f1 - y_f1_std, y2=y_f1 + y_f1_std, alpha=0.125, facecolor=c[2])
-
-    # Label the axes:
-    plt.xlabel("$\\varepsilon$", fontsize=14)
-    plt.ylabel('Mean Error')
-    plt.title('Mean Error vs ε with ±1σ Bands')
-    plt.legend()
-    plt.grid(True)
-
-    # Save the figure
-    plt.savefig(f'{folder}Results_erros.pdf', bbox_inches='tight', pad_inches=0)
-
-def plot_eval_results_no_reject(file: str, folder: str):
-    '''
-    Plot the evaluation results of the C++ implementation
-    '''
-
     # Set the color palette
     c = mpl.colormaps['tab10'].colors
 
     # Set the figure size
     # B x H
-    plt.figure(figsize=(9, 4))
-
-    # read the data from the csv file
-    df = pd.read_csv(file)
-    
-    # Now extract into NumPy arrays if you like:
-    x             = df['eps'].values
-    y_fitness     = df['mean_fit'].values
-    y_fitness_std = df['std_fit'].values
-    y_f1          = df['mean_f1'].values
-    y_f1_std      = df['std_f1'].values
-    y_precision   = df['mean_prec'].values
-    y_precision_std= df['std_prec'].values
-    y_recall      = df['mean_rec'].values
-    y_recall_std  = df['std_rec'].values
-    y_baseline = np.ones_like(x) 
+    fig1, ax1 = plt.subplots(figsize=(9, 4))
 
     # Plot all graphs
-    plt.plot(x, y_fitness, c=c[0], linewidth=2, label="Fitness", marker='.', markersize=12)
-    plt.plot(x, y_f1, c=c[2], linewidth=2, label="F1-Score", marker='.', markersize=12)
-    plt.plot(x, y_precision, c=c[1], linewidth=2, label="Precision", marker='.', markersize=12)
-    plt.plot(x, y_recall, c=c[3], linewidth=2, label="Recall", marker='.', markersize=12)
-    plt.plot(x, y_baseline, c='black', linewidth=2, label="Baseline")
+    ax1.plot(x, y_fitness, c=c[0], linewidth=2, label="Fitness", marker='x', markersize=12)
+    ax1.plot(x, y_f1, c=c[2], linewidth=2, label="F1-Score", marker='.', markersize=12)
+    ax1.plot(x, y_precision, c=c[1], linewidth=2, label="Precision", marker='.', markersize=12)
+    ax1.plot(x, y_recall, c=c[4], linewidth=2, label="Recall", marker='.', markersize=12)
+    ax1.plot(x, y_baseline, c="black", linewidth=2, label="Baseline", linestyle="--")
 
     # Plot standard deviation
-    plt.fill_between(x=x, y1=y_fitness - y_fitness_std, y2=y_fitness + y_fitness_std, alpha=0.1, facecolor=c[0])
-    plt.fill_between(x=x, y1=y_f1 - y_f1_std, y2=y_f1 + y_f1_std, alpha=0.125, facecolor=c[2])
-    plt.fill_between(x=x, y1=y_precision - y_precision_std, y2=y_precision + y_precision_std, alpha=0.125, facecolor=c[1])
-    plt.fill_between(x=x, y1=y_recall - y_recall_std, y2=y_recall + y_recall_std, alpha=0.125, facecolor=c[3])
+    ax1.fill_between(x=x, y1=y_fitness - y_fitness_std, y2=y_fitness + y_fitness_std, alpha=0.1, facecolor=c[0])
+    ax1.fill_between(x=x, y1=y_f1 - y_f1_std, y2=y_f1 + y_f1_std, alpha=0.125, facecolor=c[2])
+    ax1.fill_between(x=x, y1=y_precision - y_precision_std, y2=y_precision + y_precision_std, alpha=0.125, facecolor=c[1])
+    ax1.fill_between(x=x, y1=y_recall - y_recall_std, y2=y_recall + y_recall_std, alpha=0.125, facecolor=c[4])
 
     # Label the axes:
-    plt.xlabel("$\\varepsilon$", fontsize=14)
-    plt.ylabel("Eval Results", fontsize=14)
+    ax1.set_xlabel("$\\varepsilon$", fontsize=14)
+    ax1.set_ylabel("Eval Results", fontsize=14)
 
     # Limits of the axes:
-    plt.xlim(0.05, 1.05)
-    plt.ylim(0.0, 1.15)
-    plt.xticks([0.1, 0.2, 0.5, 0.8, 1.0])
-    plt.yticks(fontsize=12)
-    plt.xticks(fontsize=12) # rotation=-45
-    
-    plt.gca().yaxis.set_major_formatter(StrMethodFormatter('{x:,.2f}'))
+    ax1.set_xlim(0.05, 1.05)
+    ax1.set_ylim(0.4, 1.1)
+    ax1.set_xticks([0.1, 0.2, 0.5, 0.8, 1.0])
+    ax1.tick_params(axis='both', which='major', labelsize=12)
+    ax1.yaxis.set_major_formatter(StrMethodFormatter('{x:,.2f}'))
+    ax1.grid(True)
 
     # Show the legend on the plot:
-    plt.legend(loc='best', ncol=7, fontsize=12, frameon=False, handlelength=1.5, handleheight=0.5, borderpad=0.5, labelspacing=0.5)
+    ax1.legend(loc='best', ncol=3, fontsize=12, frameon=False, handlelength=1.5, handleheight=0.5, borderpad=0.5, labelspacing=0.5)
     
     # Save the figure
-    plt.savefig(f'{folder}Results_no_reject.pdf', bbox_inches='tight', pad_inches=0)
+    fig1.savefig(f'{folder}Results.pdf', bbox_inches='tight', pad_inches=0)
+    plt.close(fig1)
 
-def plot_error_results_no_reject(file: str, folder: str):
-    '''
-    Plot the error results of the C++ implementation
-    '''
+    """
+    --------------------------------------------------------------------------------------------
+    Plot the second figure with accuracy, jaccard, and FNR
+    --------------------------------------------------------------------------------------------
+    """
 
-    # Set the color palette
-    #  c = mpl.colormaps['tab10'].colors
+    # Plot the second figure
+    fig2, ax2 = plt.subplots(figsize=(9, 4))
 
-    # Set the figure size
-    # B x H
-    plt.figure(figsize=(9, 4))
+    ax2.plot(x, y_acc, c=c[0], linewidth=2, label="Accuracy", marker='x', markersize=12)
+    ax2.plot(x, y_jaccard, c=c[1], linewidth=2, label="Jaccard", marker='.', markersize=12)
+    ax2.plot(x, y_fnr, c=c[2], linewidth=2, label="FNR", marker='.', markersize=12)
+    ax2.plot(x, y_baseline, c='black', linewidth=2, label="Baseline", linestyle='--')
+    ax2.plot(x, np.zeros_like(x), c='gray', linewidth=2, label="Baseline - FNR", linestyle='dashdot')
 
-    # read the data from the csv file
+    ax2.fill_between(x=x, y1=y_acc - y__acc_std, y2=y_acc + y__acc_std, alpha=0.125, facecolor=c[0])
+    ax2.fill_between(x=x, y1=y_jaccard - y_jaccard_std, y2=y_jaccard + y_jaccard_std, alpha=0.125, facecolor=c[1])
+    ax2.fill_between(x=x, y1=y_fnr - y_fnr_std, y2=y_fnr + y_fnr_std, alpha=0.125, facecolor=c[2])
+
+    ax2.set_xlabel("$\\varepsilon$", fontsize=14)
+    ax2.set_ylabel("Eval Results", fontsize=14)
+
+    # Limits of the axes:
+    ax2.set_xlim(0.05, 1.05)
+    ax2.set_ylim(-0.05, 1.1)
+    ax2.set_xticks([0.1, 0.2, 0.5, 0.8, 1.0])
+    ax2.tick_params(axis='both', which='major', labelsize=12)
+    ax2.yaxis.set_major_formatter(StrMethodFormatter('{x:,.2f}'))
+    ax2.grid(True)
+
+    # Show the legend on the plot:
+    ax2.legend(loc='best', ncol=3, fontsize=12, frameon=False, handlelength=1.5, handleheight=0.5, borderpad=0.5, labelspacing=0.5)
+    
+    # Save the figure
+    fig2.savefig(f'{folder}Results_two.pdf', bbox_inches='tight', pad_inches=0)
+    plt.close(fig2)
+
+    """
+    --------------------------------------------------------------------------------------------
+    Plot the third figure with TP, FP, TN, FN
+    --------------------------------------------------------------------------------------------
+    """
+    baseline = np.full_like(x, 11044.0)  # Create a dynamic baseline array
+
+    # Plot the third figure
+    fig3, ax3 = plt.subplots(figsize=(9, 4))
+
+    ax3.plot(x, y_tp, c=c[0], linewidth=2, label="TP", marker='.', markersize=12)
+    ax3.plot(x, y_fn, c=c[1], linewidth=2, label="FN", marker='x', markersize=12)
+    ax3.plot(x, y_tp + y_fn, c=c[2], linewidth=2, label="TP + FN", marker='.', markersize=12)
+    ax3.plot(x, np.zeros_like(x), c='red', linewidth=2, label="FP & TN", linestyle='-.')
+    ax3.plot(x, baseline, c='black', linewidth=2, label="Baseline", linestyle='--')
+
+    ax3.fill_between(x=x, y1=y_tp - y_tp_std, y2=y_tp + y_tp_std, alpha=0.125, facecolor=c[0])
+    ax3.fill_between(x=x, y1=y_fn - y_fn_std, y2=y_fn + y_fn_std, alpha=0.125, facecolor=c[1])
+
+    ax3.set_xlabel("$\\varepsilon$", fontsize=14)
+    ax3.set_ylabel("Results - Confusion Matrix", fontsize=14)
+
+    # Limits of the axes:
+    ax3.set_xticks([0.1, 0.2, 0.5, 0.8, 1.0])
+    ax3.tick_params(axis='both', which='major', labelsize=12)
+    ax3.yaxis.set_major_formatter(StrMethodFormatter('{x:,.2f}'))
+    ax3.grid(True)
+
+    # Show the legend on the plot:
+    ax3.legend(loc='best', ncol=3, fontsize=12, frameon=False, handlelength=1.5, handleheight=0.5, borderpad=0.5, labelspacing=0.5)
+    # Save the figure
+    fig3.savefig(f'{folder}Results_conf.pdf', bbox_inches='tight', pad_inches=0)
+    plt.close(fig3)
+
+# def plot_error_results(file: str, folder: str):
+#     '''
+#     Plot the error results of the C++ implementation
+#     '''
+
+#     # Set the color palette
+#     #  c = mpl.colormaps['tab10'].colors
+
+#     # Set the figure size
+#     # B x H
+#     plt.figure(figsize=(9, 4))
+
+#     # read the data from the csv file
+#     df = pd.read_csv(file)
+#     df_base = pd.read_csv('../results/errors_noDP.csv')
+    
+#     # Plot
+#     plt.figure()
+#     for length, group in df.groupby('subset_max_length'):
+#         x = group['eps']
+#         y = group['mean_error']
+#         err = group['std_error']
+#         # plot mean line
+#         plt.plot(x, y, marker='o', label=f'max length = {length}')
+#         # fill ± std deviation
+#         plt.fill_between(x, y - err, y + err, alpha=0.3)
+
+#     for length, group in df_base.groupby('subset_max_length'):
+#         x = group['eps']
+#         y = group['mean_error']
+#         err = group['std_error']
+#         # plot mean line
+#         plt.plot(x, y, marker='x', label=f'max length = {length} (Baseline)')
+#         # fill ± std deviation
+#         plt.fill_between(x, y - err, y + err, alpha=0.3)
+
+#     # Plot standard deviation
+#     # plt.fill_between(x=x, y1=y_fitness - y_fitness_std, y2=y_fitness + y_fitness_std, alpha=0.1, facecolor=c[0])
+#     # plt.fill_between(x=x, y1=y_f1 - y_f1_std, y2=y_f1 + y_f1_std, alpha=0.125, facecolor=c[2])
+
+#     # Label the axes:
+#     plt.xlabel("$\\varepsilon$", fontsize=14)
+#     plt.ylabel('Mean Error')
+#     plt.title('Mean Error vs ε with ±1σ Bands')
+#     plt.legend()
+#     plt.grid(True)
+
+#     # Save the figure
+#     plt.savefig(f'{folder}Results_erros.pdf', bbox_inches='tight', pad_inches=0)
+
+def plot_error_results(file: str, folder: str, dataset_name: str):
+    """
+    For each epsilon in `file`, plot mean error vs subset_max_length (±std)
+    with one connected curve for the implementation and the same baseline curve.
+    """
+    # Read data
     df = pd.read_csv(file)
+    df_base = pd.read_csv(f'../results/errors_noDP_{dataset_name}.csv')
     
-    # Plot
-    plt.figure()
-    for length, group in df.groupby('subset_max_length'):
-        x = group['eps']
-        y = group['mean_error']
-        err = group['std_error']
-        # plot mean line
-        plt.plot(x, y, marker='o', label=f'max length = {length}')
-        # fill ± std deviation
-        plt.fill_between(x, y - err, y + err, alpha=0.3)
+    # Sort baseline by subset_max_length once
+    df_base_sorted = df_base.sort_values('subset_max_length')
+    x_bas = df_base_sorted['subset_max_length']
+    y_bas = df_base_sorted['relative_error']
 
-    # Plot standard deviation
-    # plt.fill_between(x=x, y1=y_fitness - y_fitness_std, y2=y_fitness + y_fitness_std, alpha=0.1, facecolor=c[0])
-    # plt.fill_between(x=x, y1=y_f1 - y_f1_std, y2=y_f1 + y_f1_std, alpha=0.125, facecolor=c[2])
+    # Get sorted list of eps values
+    eps_values = sorted(df['eps'].unique(), key=float)
 
-    # Label the axes:
-    plt.xlabel("$\\varepsilon$", fontsize=14)
-    plt.ylabel('Mean Error')
-    plt.title('Mean Error vs ε with ±1σ Bands')
-    plt.legend()
-    plt.grid(True)
+    # eps_values = [0.1, 0.2, 0.5, 0.8, 1.0]
 
-    # Save the figure
-    plt.savefig(f'{folder}Results_erros_no_reject.pdf', bbox_inches='tight', pad_inches=0)
+    for eps in eps_values:
+        # Filter & sort for this epsilon
+        df_eps = df[df['eps'] == eps].sort_values('subset_max_length')
+
+        # Create figure
+        fig, ax = plt.subplots(figsize=(8, 5))
+
+        # Plot implementation curve
+        x_imp = df_eps['subset_max_length']
+        y_imp = df_eps['relative_error']
+        ax.plot(x_imp, y_imp, marker='o', label='PPME: Berlin')
+
+        # Plot the same baseline curve
+        ax.plot(x_bas, y_bas, marker='x', linestyle='--', label='Baseline')
+
+        # Labels & title
+        ax.set_xlabel("Subset max length", fontsize=14)
+        ax.set_ylabel("Mean Error", fontsize=14)
+        plt.yticks(fontsize=12)
+        # plt.xticks([0.1, 0.2, 0.5, 0.8, 1.0])
+        plt.xticks([4, 8, 12, 16, 20], fontsize=12)
+        ax.set_title(f"Mean Error vs Max Length (ε = {eps})", fontsize=14)
+        ax.grid(True)
+        plt.legend(loc='best', ncol=7, fontsize=12, frameon=False, handlelength=1.5, handleheight=0.5, borderpad=0.5, labelspacing=0.5)
+
+        # Save
+        out_path = f"{folder}Results_error_eps{eps}.pdf"
+        fig.savefig(out_path, bbox_inches='tight', pad_inches=0.1)
+        plt.close(fig)

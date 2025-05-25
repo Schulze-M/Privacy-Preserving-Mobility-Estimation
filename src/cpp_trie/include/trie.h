@@ -94,7 +94,11 @@ public:
                 // This allows for the same station to be part of different sequences.
                 // Note: This is a simplification; in a real trie, you might want to handle
                 // this differently to avoid over-counting.
-                node->count += countValue;
+                // node->count += countValue;
+                 // Only update the count for sequences of length at least 3.
+                if (i - start + 1 >= 3)
+                    node->count += countValue;
+            
             }
         }
     }
@@ -312,39 +316,61 @@ public:
     // Evaluate average relative errors for random count queries
     // Splits into 4 subsets by query length up to maxQL
     std::vector<double> evaluateCountQueries(
-        const std::vector<std::vector<Station>>& data,
-        size_t numQueries = 40000,
-        int maxQL = 12
+        const std::vector<std::vector<Station>>& data
     ) const {
         static thread_local std::mt19937_64 rng(std::random_device{}());
-        // Build universe
+
+        // Build station universe
         std::unordered_set<Station, StationHash, StationEqual> us;
-        for(auto const& t: data) for(auto const& s: t) us.insert(s);
+        for (auto const& traj : data)
+            for (auto const& s : traj)
+                us.insert(s);
         std::vector<Station> uni(us.begin(), us.end());
-        size_t N=data.size(); 
-        double s_bd=0.01*N;
-        
-        std::uniform_int_distribution<size_t> uid(0, uni.size()-1);
-        const int k=5;
-        std::vector<double> sumE(k,0);
-        std::vector<size_t> cntQ(k,0);
-        for(size_t qi=0;qi<numQueries;++qi) {
-            int idx = qi*k/numQueries;
-            int mlen = std::max(1,(idx+1)*maxQL/k);
-            std::uniform_int_distribution<int> ld(1,mlen);
-            int ql=ld(rng);
-            std::vector<Station> q; q.reserve(ql);
-            for(int i=0;i<ql;++i) q.push_back(uni[uid(rng)]);
-            double tC=trueCount(data,q);
-            double eC=estimatedCount(q);
-            double denom = std::max(tC, s_bd);
-            sumE[idx] += std::abs(eC-tC)/denom;
-            cntQ[idx]++;
+
+        const size_t N = data.size();
+        // Sanity bound = 0.1% of total trajectories
+        const double s_bd = 0.001 * N;
+
+        // Five query‐length buckets with paper’s max sizes
+        std::array<int,5> maxQLs = {4, 8, 12, 16, 20};
+        const int k = static_cast<int>(maxQLs.size());
+
+        std::vector<double> sumRelErr(k, 0.0);
+        std::vector<size_t> cntQ(k, 0);
+
+        // For each bucket, generate exactly 10 000 random queries
+        for (int b = 0; b < k; ++b) {
+            std::uniform_int_distribution<int> lenDist(1, maxQLs[b]);
+            for (size_t qi = 0; qi < 10000; ++qi) {
+                int ql = lenDist(rng);
+
+                // Sample a random prefix of length ql
+                std::vector<Station> q;
+                q.reserve(ql);
+                std::uniform_int_distribution<size_t> uid(0, uni.size() - 1);
+                for (int i = 0; i < ql; ++i)
+                    q.push_back(uni[uid(rng)]);
+
+                double tC = static_cast<double>(trueCount(data, q));
+                double eC = estimatedCount(q);
+
+                // Relative error with sanity bound
+                double relerr = std::abs(eC - tC) / std::max(tC, s_bd);
+                sumRelErr[b] += relerr;
+                cntQ[b] += 1;
+            }
         }
-        std::vector<double> avg(k);
-        for(int i=0;i<k;++i) avg[i]=sumE[i]/cntQ[i];
-        return avg;
+
+        // Compute per‐bucket average relative error
+        std::vector<double> avgRelErr(k, 0.0);
+        for (int b = 0; b < k; ++b) {
+            if (cntQ[b] > 0)
+                avgRelErr[b] = sumRelErr[b] / cntQ[b];
+        }
+
+        return avgRelErr;
     }
+
 };
 
 #endif // TRIE_H
