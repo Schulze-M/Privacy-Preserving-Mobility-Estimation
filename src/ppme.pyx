@@ -160,9 +160,8 @@ def trie(list py_trajectories, str dataname, eps=0.1, do_eval=False, num_evals=1
     trie_bool = create_trie(triplet=triplet_map, epsilon=eps, trajectories=trajectories)
 
     erros = evalErrors(triplet=triplet_map, epsilon=eps, trajectories=trajectories)
-    nonDP_erros = evalErrors_noDP(triplet=triplet_map, trajectories=trajectories)
+    # nonDP_erros = evalErrors_noDP(triplet=triplet_map, trajectories=trajectories)
     print(erros)
-    print(nonDP_erros)
 
     end = time.time()
 

@@ -257,7 +257,7 @@ def plot_error_results(file: str, folder: str, dataset_name: str):
     # Sort baseline by subset_max_length once
     df_base_sorted = df_base.sort_values('subset_max_length')
     x_bas = df_base_sorted['subset_max_length']
-    y_bas = df_base_sorted['relative_error']
+    y_bas = df_base_sorted['mean_error']
 
     # Get sorted list of eps values
     eps_values = sorted(df['eps'].unique(), key=float)
@@ -273,11 +273,13 @@ def plot_error_results(file: str, folder: str, dataset_name: str):
 
         # Plot implementation curve
         x_imp = df_eps['subset_max_length']
-        y_imp = df_eps['relative_error']
+        y_imp = df_eps['mean_error']
         ax.plot(x_imp, y_imp, marker='o', label='PPME: Berlin')
+        ax.fill_between(x_imp, y_imp - df_eps['std_error'], y_imp + df_eps['std_error'], alpha=0.2)
 
         # Plot the same baseline curve
         ax.plot(x_bas, y_bas, marker='x', linestyle='--', label='Baseline')
+        ax.fill_between(x_bas, y_bas - df_base_sorted['std_error'], y_bas + df_base_sorted['std_error'], alpha=0.2, color='gray')
 
         # Labels & title
         ax.set_xlabel("Subset max length", fontsize=14)
