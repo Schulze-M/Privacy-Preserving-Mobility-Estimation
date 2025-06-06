@@ -96,7 +96,7 @@ public:
                 // this differently to avoid over-counting.
                 // node->count += countValue;
                  // Only update the count for sequences of length at least 3.
-                if (i - start + 1 >= 3)
+                // if (i - start + 1 >= 3)
                     node->count += countValue;
             
             }

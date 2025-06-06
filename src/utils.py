@@ -56,7 +56,7 @@ def test_cpp_results(traj: list, start: dict, prefixes: dict):
     assert prefix_dict == prefixes, "The prefix dictionaries are not equal"
     print("The two prefix dictionaries are equal")
 
-def plot_eval_results(file: str, folder: str):
+def plot_eval_results(file: str, folder: str, dataset_name: str):
     '''
     Plot the evaluation results of the C++ implementation
     '''
@@ -90,7 +90,7 @@ def plot_eval_results(file: str, folder: str):
 
     # Set the figure size
     # B x H
-    fig1, ax1 = plt.subplots(figsize=(9, 4))
+    fig1, ax1 = plt.subplots(figsize=(8, 5)) # (9, 4) for 2x1 layout
 
     # Plot all graphs
     ax1.plot(x, y_fitness, c=c[0], linewidth=2, label="Fitness", marker='x', markersize=12)
@@ -121,7 +121,7 @@ def plot_eval_results(file: str, folder: str):
     ax1.legend(loc='best', ncol=3, fontsize=12, frameon=False, handlelength=1.5, handleheight=0.5, borderpad=0.5, labelspacing=0.5)
     
     # Save the figure
-    fig1.savefig(f'{folder}Results.pdf', bbox_inches='tight', pad_inches=0)
+    fig1.savefig(f'{folder}Results_{dataset_name}.pdf', bbox_inches='tight', pad_inches=0)
     plt.close(fig1)
 
     """
@@ -131,7 +131,7 @@ def plot_eval_results(file: str, folder: str):
     """
 
     # Plot the second figure
-    fig2, ax2 = plt.subplots(figsize=(9, 4))
+    fig2, ax2 = plt.subplots(figsize=(8, 5)) # (9, 4) for 2x1 layout
 
     ax2.plot(x, y_acc, c=c[0], linewidth=2, label="Accuracy", marker='x', markersize=12)
     ax2.plot(x, y_jaccard, c=c[1], linewidth=2, label="Jaccard", marker='.', markersize=12)
@@ -158,7 +158,7 @@ def plot_eval_results(file: str, folder: str):
     ax2.legend(loc='best', ncol=3, fontsize=12, frameon=False, handlelength=1.5, handleheight=0.5, borderpad=0.5, labelspacing=0.5)
     
     # Save the figure
-    fig2.savefig(f'{folder}Results_two.pdf', bbox_inches='tight', pad_inches=0)
+    fig2.savefig(f'{folder}Results_two_{dataset_name}.pdf', bbox_inches='tight', pad_inches=0)
     plt.close(fig2)
 
     """
@@ -166,10 +166,17 @@ def plot_eval_results(file: str, folder: str):
     Plot the third figure with TP, FP, TN, FN
     --------------------------------------------------------------------------------------------
     """
-    baseline = np.full_like(x, 11044.0)  # Create a dynamic baseline array
+    if dataset_name == 'msnbc':
+        # For MSNBC, we scale down the baseline to 11044.0
+        baseline = np.full_like(x, 4260.0)
+    elif dataset_name == 'msnbc_mod':
+        # For MSNBC Mod, we scale down the baseline to 11044.0
+        baseline = np.full_like(x, 4258.0)
+    else:
+        baseline = np.full_like(x, 9190.0)  # 9190 for 10,000 trajectories and 11044 for 1,000,000 trajectories
 
     # Plot the third figure
-    fig3, ax3 = plt.subplots(figsize=(9, 4))
+    fig3, ax3 = plt.subplots(figsize=(8, 5)) # (9, 4) for 2x1 layout
 
     ax3.plot(x, y_tp, c=c[0], linewidth=2, label="TP", marker='.', markersize=12)
     ax3.plot(x, y_fn, c=c[1], linewidth=2, label="FN", marker='x', markersize=12)
@@ -192,58 +199,8 @@ def plot_eval_results(file: str, folder: str):
     # Show the legend on the plot:
     ax3.legend(loc='best', ncol=3, fontsize=12, frameon=False, handlelength=1.5, handleheight=0.5, borderpad=0.5, labelspacing=0.5)
     # Save the figure
-    fig3.savefig(f'{folder}Results_conf.pdf', bbox_inches='tight', pad_inches=0)
+    fig3.savefig(f'{folder}Results_conf_{dataset_name}.pdf', bbox_inches='tight', pad_inches=0)
     plt.close(fig3)
-
-# def plot_error_results(file: str, folder: str):
-#     '''
-#     Plot the error results of the C++ implementation
-#     '''
-
-#     # Set the color palette
-#     #  c = mpl.colormaps['tab10'].colors
-
-#     # Set the figure size
-#     # B x H
-#     plt.figure(figsize=(9, 4))
-
-#     # read the data from the csv file
-#     df = pd.read_csv(file)
-#     df_base = pd.read_csv('../results/errors_noDP.csv')
-    
-#     # Plot
-#     plt.figure()
-#     for length, group in df.groupby('subset_max_length'):
-#         x = group['eps']
-#         y = group['mean_error']
-#         err = group['std_error']
-#         # plot mean line
-#         plt.plot(x, y, marker='o', label=f'max length = {length}')
-#         # fill ± std deviation
-#         plt.fill_between(x, y - err, y + err, alpha=0.3)
-
-#     for length, group in df_base.groupby('subset_max_length'):
-#         x = group['eps']
-#         y = group['mean_error']
-#         err = group['std_error']
-#         # plot mean line
-#         plt.plot(x, y, marker='x', label=f'max length = {length} (Baseline)')
-#         # fill ± std deviation
-#         plt.fill_between(x, y - err, y + err, alpha=0.3)
-
-#     # Plot standard deviation
-#     # plt.fill_between(x=x, y1=y_fitness - y_fitness_std, y2=y_fitness + y_fitness_std, alpha=0.1, facecolor=c[0])
-#     # plt.fill_between(x=x, y1=y_f1 - y_f1_std, y2=y_f1 + y_f1_std, alpha=0.125, facecolor=c[2])
-
-#     # Label the axes:
-#     plt.xlabel("$\\varepsilon$", fontsize=14)
-#     plt.ylabel('Mean Error')
-#     plt.title('Mean Error vs ε with ±1σ Bands')
-#     plt.legend()
-#     plt.grid(True)
-
-#     # Save the figure
-#     plt.savefig(f'{folder}Results_erros.pdf', bbox_inches='tight', pad_inches=0)
 
 def plot_error_results(file: str, folder: str, dataset_name: str):
     """
@@ -253,20 +210,34 @@ def plot_error_results(file: str, folder: str, dataset_name: str):
     # Read data
     df = pd.read_csv(file)
     df_base = pd.read_csv(f'../results/errors_noDP_{dataset_name}.csv')
+    df_msnbc = pd.read_csv('../results/errors_msnbc.csv')
+    df_msnbc_base = pd.read_csv(f'../results/errors_noDP_msnbc.csv')
+    df_msnbc_mod = pd.read_csv('../results/errors_msnbc_mod.csv')
+    df_msnbc_mod_base = pd.read_csv(f'../results/errors_noDP_msnbc_mod.csv')
     
     # Sort baseline by subset_max_length once
     df_base_sorted = df_base.sort_values('subset_max_length')
     x_bas = df_base_sorted['subset_max_length']
     y_bas = df_base_sorted['mean_error']
 
+    # Sort base msnbc by subset_max_length
+    df_msnbc_sorted = df_msnbc_base.sort_values('subset_max_length')
+    x_msnbc_base = df_msnbc_sorted['subset_max_length']
+    y_msnbc_base = df_msnbc_sorted['mean_error']/3.0  # Scale down by 3.0
+
+    # Sort base msnbc_mod by subset_max_length
+    # df_msnbc_mod_sorted = df_msnbc_mod_base.sort_values('subset_max_length')
+    # x_msnbc_mod_base = df_msnbc_mod_sorted['subset_max_length']
+    # y_msnbc_mod_base = df_msnbc_mod_sorted['mean_error']/3.0  # Scale down by 3.0
+
     # Get sorted list of eps values
     eps_values = sorted(df['eps'].unique(), key=float)
-
-    # eps_values = [0.1, 0.2, 0.5, 0.8, 1.0]
 
     for eps in eps_values:
         # Filter & sort for this epsilon
         df_eps = df[df['eps'] == eps].sort_values('subset_max_length')
+        df_eps_msnbc = df_msnbc[df_msnbc['eps'] == eps].sort_values('subset_max_length')
+        df_eps_msnbc_mod = df_msnbc_mod[df_msnbc_mod['eps'] == eps].sort_values('subset_max_length')
 
         # Create figure
         fig, ax = plt.subplots(figsize=(8, 5))
@@ -274,12 +245,32 @@ def plot_error_results(file: str, folder: str, dataset_name: str):
         # Plot implementation curve
         x_imp = df_eps['subset_max_length']
         y_imp = df_eps['mean_error']
-        ax.plot(x_imp, y_imp, marker='o', label='PPME: Berlin')
+        ax.plot(x_imp, y_imp, marker='o', label='Berlin: 10,000')
         ax.fill_between(x_imp, y_imp - df_eps['std_error'], y_imp + df_eps['std_error'], alpha=0.2)
 
         # Plot the same baseline curve
         ax.plot(x_bas, y_bas, marker='x', linestyle='--', label='Baseline')
         ax.fill_between(x_bas, y_bas - df_base_sorted['std_error'], y_bas + df_base_sorted['std_error'], alpha=0.2, color='gray')
+
+        # Plot msnbc curve
+        x_msnbc = df_eps_msnbc['subset_max_length']
+        y_msnbc = df_eps_msnbc['mean_error']/3.0
+        ax.plot(x_msnbc, y_msnbc, marker='s', linestyle=':', label='MSNBC')
+        ax.fill_between(x_msnbc, y_msnbc - df_eps_msnbc['std_error']/3.0, y_msnbc + df_eps_msnbc['std_error']/3.0, alpha=0.2, color='orange')
+
+        # Plot baseline msnbc curve
+        ax.plot(x_msnbc_base, y_msnbc_base, marker='x', linestyle='--', label='Baseline MSNBC')
+        ax.fill_between(x_msnbc_base, y_msnbc_base - df_msnbc_sorted['std_error']/3.0, y_msnbc_base + df_msnbc_sorted['std_error']/3.0, alpha=0.2, color='orange')
+
+        # Plot msnbc_mod curve
+        # x_msnbc_mod = df_eps_msnbc_mod['subset_max_length']
+        # y_msnbc_mod = df_eps_msnbc_mod['mean_error']/3.0
+        # ax.plot(x_msnbc_mod, y_msnbc_mod, marker='^', linestyle='-.', label='MSNBC Mod')
+        # ax.fill_between(x_msnbc_mod, y_msnbc_mod - df_eps_msnbc_mod['std_error']/3.0, y_msnbc_mod + df_eps_msnbc_mod['std_error']/3.0, alpha=0.2, color='green')
+
+        # # Plot baseline msnbc_mod curve
+        # ax.plot(x_msnbc_mod_base, y_msnbc_mod_base, marker='x', linestyle='--', label='Baseline MSNBC Mod')
+        # ax.fill_between(x_msnbc_mod_base, y_msnbc_mod_base - df_msnbc_mod_sorted['std_error']/3.0, y_msnbc_mod_base + df_msnbc_mod_sorted['std_error']/3.0, alpha=0.2, color='green')
 
         # Labels & title
         ax.set_xlabel("Subset max length", fontsize=14)
@@ -289,7 +280,7 @@ def plot_error_results(file: str, folder: str, dataset_name: str):
         plt.xticks([4, 8, 12, 16, 20], fontsize=12)
         ax.set_title(f"Mean Error vs Max Length (ε = {eps})", fontsize=14)
         ax.grid(True)
-        plt.legend(loc='best', ncol=7, fontsize=12, frameon=False, handlelength=1.5, handleheight=0.5, borderpad=0.5, labelspacing=0.5)
+        plt.legend(loc='best', ncol=3, fontsize=12, frameon=False, handlelength=1.5, handleheight=0.5, borderpad=0.5, labelspacing=0.5)
 
         # Save
         out_path = f"{folder}Results_error_eps{eps}.pdf"

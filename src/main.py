@@ -47,7 +47,6 @@ def load_data() -> trie:
     parser.add_argument('-p', '--plot', help='Plot the results of the C++ implementation', default=False, action='store_true')
     parser.add_argument('-eps', '--epsilon', type=float, help='The epsilon value to use for DP', default=0.1)
     parser.add_argument('--noDP', help='Create a Trie without using differntial privacy', default=False, action='store_true')
-    parser.add_argument('--noReject', help='Create a Trie without using rejection sampling', default=False, action='store_true')
 
     # parse the arguments
     args = parser.parse_args()
@@ -63,11 +62,7 @@ def load_data() -> trie:
     print(len(trajs))
 
     # Create Trie with rejection sampling
-    if not args.noReject:
-        trie = ppme.trie(trajs, args.trajectory_file.replace('.pkl', ''), args.epsilon, args.evaluate, args.number)
-    else:
-        # Create trie without rejection sampling
-        trie = ppme.no_rejection_trie(trajs, args.epsilon, args.evaluate, args.number)
+    trie = ppme.trie(trajs, args.trajectory_file.replace('.pkl', ''), args.epsilon, args.evaluate, args.number)
 
     # Create trie without DP
     if args.noDP:
@@ -78,10 +73,8 @@ def load_data() -> trie:
     dataset_name = args.trajectory_file.replace('.pkl', '')
 
     if args.plot:
-        plot_eval_results(f'../results/data_{dataset_name}.csv', '../results/')
-        plot_error_results(f'../results/errors_{dataset_name}.csv', '../results/', dataset_name)
-
-    exit(1)
+        plot_eval_results(f'../results/data_{dataset_name}.csv', '../results/', dataset_name)
+        # plot_error_results(f'../results/errors_{dataset_name}.csv', '../results/', dataset_name)
 
 if __name__ == '__main__':
     load_data()

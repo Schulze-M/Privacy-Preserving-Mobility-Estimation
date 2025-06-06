@@ -124,15 +124,15 @@ TripletMap create_triplet_map(const std::vector<Trajectory>& trajectories) {
 bool create_trie(TripletMap triplet, double epsilon, const std::vector<Trajectory>& trajectories) {
 
     // double epsilon = 0.1;       // Adjust epsilon as needed.
-    double sensitivity = 1.0;   // Typically 1 for count queries.
+    double sensitivity = 100.0;   // Typically 1 for count queries.
     double gamma = 0.01;
     double e_0 = 0.01;
     
     epsilon = 0.5 * (epsilon -e_0); // Set epsilon for Laplace noise
     
     // Define epsilon based on shares r_1, r_2
-    double e_cnt = epsilon * 0.85;
-    double e_fnr = epsilon * 0.15;
+    double e_cnt = epsilon * 0.95;
+    double e_fnr = epsilon * 0.05;
 
     int T = static_cast<int>(std::max((1.0 / gamma) * std::log(2.0 / e_0), 1.0 / (std::exp(1.0) * gamma)));
 
@@ -250,14 +250,14 @@ bool create_trie_no_noise(TripletMap triplet, const std::vector<Trajectory>& tra
 EvalResult evaluate(TripletMap triplet, double epsilon, const std::vector<Trajectory>& trajectories) {
 
     // double epsilon = 0.1;       // Adjust epsilon as needed.
-    double sensitivity = 1.0;   // Typically 1 for count queries.
+    double sensitivity = 100.0;   // Typically 1 for count queries.
     double gamma = 0.01;
     double e_0 = 0.01;
     
     epsilon = 0.5 * (epsilon - e_0); // Set epsilon for Laplace noise
     
     // Define epsilon based on shares r_1, r_2
-    double e_cnt = epsilon * 0.9;
+    double e_cnt = epsilon * 0.95;
     double e_fnr = epsilon * 0.05;
 
     // Calculate T based on the provided formula -> used to get the number of iterations
@@ -389,7 +389,7 @@ EvalResult evaluate_no_noise(TripletMap triplet, const std::vector<Trajectory>& 
 std::vector<double> evalErrors(TripletMap triplet, double epsilon, const std::vector<Trajectory>& trajectories) {
     
     // double epsilon = 0.1;       // Adjust epsilon as needed.
-    double sensitivity = 1.0;   // Typically 1 for count queries.
+    double sensitivity = 100.0;   // Typically 1 for count queries.
     double gamma = 0.01;
     double e_0 = 0.01;
     
@@ -397,7 +397,7 @@ std::vector<double> evalErrors(TripletMap triplet, double epsilon, const std::ve
     
     // Define epsilon based on shares r_1, r_2
     double e_cnt = epsilon * 0.9;
-    double e_fnr = epsilon * 0.05;
+    double e_fnr = epsilon * 0.1;
 
     // Calculate T based on the provided formula -> used to get the number of iterations
     int T = static_cast<int>(std::max((1.0 / gamma) * std::log(2.0 / e_0), 1.0 / (std::exp(1.0) * gamma)));

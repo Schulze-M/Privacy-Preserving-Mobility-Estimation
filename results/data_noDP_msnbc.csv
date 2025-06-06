@@ -1,0 +1,2 @@
+eps,mean_fit,std_fit,mean_f1,std_f1,mean_prec,std_prec,mean_rec,std_rec,mean_tp,std_tp,mean_fp,std_fp,mean_fn,std_fn,mean_tn,std_tn,mean_acc,std_acc,mean_jaccard,std_jaccard,mean_fnr,std_fnr,num_evals
+inf,0.99999286777866647213,0.0,0.9978917779339423477,0.0,1.0,0.0,0.99579242636746145845,0.0,4260.0,0.0,0.0,0.0,18.0,0.0,0.0,0.0,0.99579242636746145845,0.0,0.99579242636746145845,0.0,0.004207573632538569308,0.0,100
