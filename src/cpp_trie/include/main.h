@@ -114,7 +114,7 @@ bool create_trie(TripletMap triplet, double epsilon, const std::vector<Trajector
 bool create_trie_no_noise(TripletMap triplet, const std::vector<Trajectory>& trajectories);
 
 // Function to evaluate the trie
-EvalResult evaluate(TripletMap triplet, double epsilon, const std::vector<Trajectory>& trajectories);
+EvalResult evaluate(TripletMap triplet, double epsilon, const std::vector<Trajectory>& trajectories, bool ablation);
 
 // Function to evaluate the trie without any noise
 EvalResult evaluate_no_noise(TripletMap triplet, const std::vector<Trajectory>& trajectories);
@@ -129,6 +129,9 @@ PrefixMap process_test(const Trajectory trajec, const StartMap start);
 
 // Function to add Laplace noise to triplet counts
 TripletMap noise_triplets(const TripletMap& triplets, double epsilon);
+
+// Function to add Laplace noise to triplet counts
+TripletMap ablation_noise_triplets(const TripletMap& triplets, double epsilon);
 
 // Function to get most significant triplets
 TripletMap select_significant_triplets(const TripletMap& triplet_counts, double epsilon);

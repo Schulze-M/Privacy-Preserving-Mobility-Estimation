@@ -58,7 +58,7 @@ cdef extern from "./cpp_trie/include/main.h":
     TripletMap create_triplet_map(const vector[Trajectory]& trajectories)
     bool create_trie(TripletMap triplet, double epsilon, const vector[Trajectory]& trajectories)
     bool create_trie_no_noise(TripletMap triplet, const vector[Trajectory]& trajectories)
-    EvalResult evaluate(TripletMap triplet, double epsilon, const vector[Trajectory]& trajectories)
+    EvalResult evaluate(TripletMap triplet, double epsilon, const vector[Trajectory]& trajectories, bool ablation)
     EvalResult evaluate_no_noise(TripletMap triplet, const vector[Trajectory]& trajectories)
     vector[double] evalErrors(TripletMap triplet, double epsilon, const vector[Trajectory]& trajectories)
     vector[double] evalErrors_noDP(TripletMap triplet, const vector[Trajectory]& trajectories)
@@ -134,7 +134,7 @@ cdef vector[Trajectory] list_to_vector(list py_list):
     return trajectories
 
 # Main function to process prefixes
-def trie(list py_trajectories, str dataname, eps=0.1, do_eval=False, num_evals=100):
+def trie(list py_trajectories, str dataname, eps=0.1, do_eval=False, num_evals=100, ablation=False):
     """
     Process the trajectories and build a trie.
     """
@@ -168,7 +168,7 @@ def trie(list py_trajectories, str dataname, eps=0.1, do_eval=False, num_evals=1
     print(f"Done Trie generation in {(end - start) / 60} minutes\n")
 
     if do_eval:
-        evaluate_trie(triplet_map, trajectories, num_evals, dataname)
+        evaluate_trie(triplet_map, trajectories, num_evals, dataname, ablation)
 
     return trie_bool
 
@@ -214,7 +214,7 @@ def no_dp_trie(list py_trajectories, str dataname, do_eval=False, num_evals=100)
 """
 Function to evaluate the Rejection Sampling Trie generation
 """
-cdef void evaluate_trie(TripletMap triplet, vector[Trajectory] traject, int num_evals, str dataname):
+cdef void evaluate_trie(TripletMap triplet, vector[Trajectory] traject, int num_evals, str dataname, ablation):
     # Ensure the results directory exists
     os.makedirs("../results", exist_ok=True)
 
@@ -222,20 +222,36 @@ cdef void evaluate_trie(TripletMap triplet, vector[Trajectory] traject, int num_
     start = time.time()
 
     # Initialize CSV file
-    with open(f'../results/data_{dataname}.csv', mode='w', newline='', encoding='utf-8') as df:
-        writer = csv.writer(df)
-        writer.writerow(['eps','mean_fit','std_fit','mean_f1','std_f1', 
-        'mean_prec', 'std_prec', 'mean_rec', 'std_rec', "mean_tp", "std_tp",
-        'mean_fp', 'std_fp', 'mean_fn', 'std_fn', 'mean_tn', 'std_tn',
-        'mean_acc', 'std_acc', 'mean_jaccard', 'std_jaccard', 'mean_fnr', 'std_fnr',
-        'num_evals', 'max_grams'])
+    if not ablation:
+        with open(f'../results/data_{dataname}.csv', mode='w', newline='', encoding='utf-8') as df:
+            writer = csv.writer(df)
+            writer.writerow(['eps','mean_fit','std_fit','mean_f1','std_f1', 
+            'mean_prec', 'std_prec', 'mean_rec', 'std_rec', "mean_tp", "std_tp",
+            'mean_fp', 'std_fp', 'mean_fn', 'std_fn', 'mean_tn', 'std_tn',
+            'mean_acc', 'std_acc', 'mean_jaccard', 'std_jaccard', 'mean_fnr', 'std_fnr',
+            'num_evals'])
 
-    with open(f'../results/errors_{dataname}.csv', mode='w', newline='', encoding='utf-8') as ef:
-        writer = csv.writer(ef)
-        writer.writerow([
-            'eps','max_query_length','subset_id',
-            'subset_max_length','mean_error','std_error','num_evals'
-        ])
+        with open(f'../results/errors_{dataname}.csv', mode='w', newline='', encoding='utf-8') as ef:
+            writer = csv.writer(ef)
+            writer.writerow([
+                'eps','max_query_length','subset_id',
+                'subset_max_length','mean_error','std_error','num_evals'
+            ])
+    else:
+        with open(f'../results/data_{dataname}_ablation.csv', mode='w', newline='', encoding='utf-8') as df:
+            writer = csv.writer(df)
+            writer.writerow(['eps','mean_fit','std_fit','mean_f1','std_f1', 
+            'mean_prec', 'std_prec', 'mean_rec', 'std_rec', "mean_tp", "std_tp",
+            'mean_fp', 'std_fp', 'mean_fn', 'std_fn', 'mean_tn', 'std_tn',
+            'mean_acc', 'std_acc', 'mean_jaccard', 'std_jaccard', 'mean_fnr', 'std_fnr',
+            'num_evals'])
+
+        with open(f'../results/errors_{dataname}_ablation.csv', mode='w', newline='', encoding='utf-8') as ef:
+            writer = csv.writer(ef)
+            writer.writerow([
+                'eps','max_query_length','subset_id',
+                'subset_max_length','mean_error','std_error','num_evals'
+            ])
 
     Eps = [0.1, 0.2, 0.5, 0.8, 1.0]
     for eps in Eps:
@@ -253,7 +269,7 @@ cdef void evaluate_trie(TripletMap triplet, vector[Trajectory] traject, int num_
         fnr = []
         # Evaluate the triplet map
         for i in range(num_evals):
-            result = evaluate(triplet=triplet, epsilon=eps, trajectories=traject, )
+            result = evaluate(triplet=triplet, epsilon=eps, trajectories=traject, ablation=ablation)
             fit.append(result.fit)
             f1.append(result.f1)
             precision.append(result.precision)
@@ -347,8 +363,12 @@ cdef void evaluate_trie(TripletMap triplet, vector[Trajectory] traject, int num_
         script_dir = os.path.dirname(os.path.abspath(__file__))
         project_root = os.path.abspath(os.path.join(script_dir, os.pardir))
         output_dir = os.path.join(project_root, 'results')
-        output_file_data = os.path.join(output_dir, f'data_{dataname}.csv')
-        output_file_errors = os.path.join(output_dir, f'errors_{dataname}.csv')
+        if not ablation:
+            output_file_data = os.path.join(output_dir, f'data_{dataname}.csv')
+            output_file_errors = os.path.join(output_dir, f'errors_{dataname}.csv')
+        else:
+            output_file_data = os.path.join(output_dir, f'data_{dataname}_ablation.csv')
+            output_file_errors = os.path.join(output_dir, f'errors_{dataname}_ablation.csv')
 
         # Write dictionary to CSV
         with open(output_file_data, mode='a', newline='', encoding='utf-8') as csvfile:

@@ -72,7 +72,7 @@ void print_trajectories(const std::vector<Trajectory>& trajectories) {
     std::cout << "End of Input Trajectories" << std::endl;
 }
 
-// Generate Triplets with a cap of 100 unique 3-grams per trajectory
+// Generate Triplets with a cap of 100 unique 3-grams per trajectory 
 TripletMap create_triplet_map(const std::vector<Trajectory>& trajectories) {
     TripletMap result;
     std::mutex result_mutex;
@@ -85,7 +85,7 @@ TripletMap create_triplet_map(const std::vector<Trajectory>& trajectories) {
         // Track unique triplets in this trajectory
         std::unordered_set<Triplet, TripletHash, TripletEqual> seen;
         std::vector<Triplet> unique_triplets;
-        unique_triplets.reserve(std::max<size_t>(100, traj.size()));
+        unique_triplets.reserve(std::max<size_t>(20, traj.size()));
 
         // Extract all unique triplets
         for (size_t i = 0; i + 2 < traj.size(); ++i) {
@@ -105,10 +105,10 @@ TripletMap create_triplet_map(const std::vector<Trajectory>& trajectories) {
         }
 
         // If more than k unique triplets, randomly select k
-        if (unique_triplets.size() > 100) {
+        if (unique_triplets.size() > 20) {
             thread_local std::mt19937 rng((std::random_device())());
             std::shuffle(unique_triplets.begin(), unique_triplets.end(), rng);
-            unique_triplets.resize(100);
+            unique_triplets.resize(20);
         }
 
         // Contribute selected triplets to the global map
@@ -124,7 +124,7 @@ TripletMap create_triplet_map(const std::vector<Trajectory>& trajectories) {
 bool create_trie(TripletMap triplet, double epsilon, const std::vector<Trajectory>& trajectories) {
 
     // double epsilon = 0.1;       // Adjust epsilon as needed.
-    double sensitivity = 100.0;   // Typically 1 for count queries.
+    double sensitivity = 20.0;   // Typically 1 for count queries.
     double gamma = 0.01;
     double e_0 = 0.01;
     
@@ -247,10 +247,10 @@ bool create_trie_no_noise(TripletMap triplet, const std::vector<Trajectory>& tra
 }
 
 // Function to process triplets
-EvalResult evaluate(TripletMap triplet, double epsilon, const std::vector<Trajectory>& trajectories) {
+EvalResult evaluate(TripletMap triplet, double epsilon, const std::vector<Trajectory>& trajectories, bool ablation) {
 
     // double epsilon = 0.1;       // Adjust epsilon as needed.
-    double sensitivity = 100.0;   // Typically 1 for count queries.
+    double sensitivity = 20.0;   // Typically 1 for count queries.
     double gamma = 0.01;
     double e_0 = 0.01;
     
@@ -282,7 +282,11 @@ EvalResult evaluate(TripletMap triplet, double epsilon, const std::vector<Trajec
         TripletMap triplet_noised = original_triplet;
 
         // noise all triplet counts, using Laplace noise
-        triplet_noised = noise_triplets(triplet_noised, e_cnt);
+        if (ablation) {
+            triplet_noised = ablation_noise_triplets(triplet_noised, e_cnt);
+        } else {
+            triplet_noised = noise_triplets(triplet_noised, e_cnt);
+        }
         
         // select significant triplets
         k_selected = select_significant_triplets(triplet_noised, e_cnt); // Select top K triplets
@@ -389,7 +393,7 @@ EvalResult evaluate_no_noise(TripletMap triplet, const std::vector<Trajectory>& 
 std::vector<double> evalErrors(TripletMap triplet, double epsilon, const std::vector<Trajectory>& trajectories) {
     
     // double epsilon = 0.1;       // Adjust epsilon as needed.
-    double sensitivity = 100.0;   // Typically 1 for count queries.
+    double sensitivity = 20.0;   // Typically 1 for count queries.
     double gamma = 0.01;
     double e_0 = 0.01;
     
@@ -475,7 +479,7 @@ std::vector<double> evalErrors_noDP(TripletMap triplet, const std::vector<Trajec
 // Function to noise all triplet counts
 TripletMap noise_triplets(const TripletMap& triplets, double epsilon) {
     // Define epsilon (privacy parameter) and sensitivity for the count query.
-    double sensitivity = 1.0 *100.0;       // Adjust sensitivity as needed.
+    double sensitivity = 1.0 *20.0;       // Adjust sensitivity as needed.
     double scale = sensitivity / epsilon;
 
     // add laplace noise to the counts
@@ -487,6 +491,28 @@ TripletMap noise_triplets(const TripletMap& triplets, double epsilon) {
     for (const auto& [triplet, count] : triplets) {
         double noise = laplace.return_a_random_variable(scale);
         noisy_triplet_counts[triplet] = count + noise; // Ensure non-negative counts
+    }
+
+    return noisy_triplet_counts;
+}
+
+// Ablation function to add noise to triplets -> used for ablation studies ONLY
+// Computes noise for each triplet count independently, without considering the original counts.
+// This is different from the noise_triplets function, which adds noise based on the original counts.
+TripletMap ablation_noise_triplets(const TripletMap& triplets, double epsilon) {
+    // Define epsilon (privacy parameter) and sensitivity for the count query.
+    double sensitivity = 1.0 * 20.0;       // Adjust sensitivity as needed.
+    double scale = sensitivity / epsilon;
+
+    // add laplace noise to the counts
+    std::random_device rd;
+    Laplace laplace(scale, rd());
+
+    // Iterate over all triplet counts and add Laplace noise.
+    TripletMap noisy_triplet_counts;
+    for (const auto& [triplet, count] : triplets) {
+        double noise = laplace.return_a_random_variable(scale);
+        noisy_triplet_counts[triplet] = 0.0 + noise; // Only add noise, not the original count
     }
 
     return noisy_triplet_counts;

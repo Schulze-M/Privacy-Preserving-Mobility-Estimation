@@ -47,6 +47,7 @@ def load_data() -> trie:
     parser.add_argument('-p', '--plot', help='Plot the results of the C++ implementation', default=False, action='store_true')
     parser.add_argument('-eps', '--epsilon', type=float, help='The epsilon value to use for DP', default=0.1)
     parser.add_argument('--noDP', help='Create a Trie without using differntial privacy', default=False, action='store_true')
+    parser.add_argument('-a', '--ablation', help='The ablation study to run', default=False, action='store_true')
 
     # parse the arguments
     args = parser.parse_args()
@@ -62,7 +63,7 @@ def load_data() -> trie:
     print(len(trajs))
 
     # Create Trie with rejection sampling
-    trie = ppme.trie(trajs, args.trajectory_file.replace('.pkl', ''), args.epsilon, args.evaluate, args.number)
+    trie = ppme.trie(trajs, args.trajectory_file.replace('.pkl', ''), args.epsilon, args.evaluate, args.number, args.ablation)
 
     # Create trie without DP
     if args.noDP:
