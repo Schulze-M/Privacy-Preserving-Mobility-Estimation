@@ -90,7 +90,7 @@ def plot_eval_results(file: str, folder: str, dataset_name: str):
 
     # Set the figure size
     # B x H
-    fig1, ax1 = plt.subplots(figsize=(8, 5)) # (9, 4) for 2x1 layout
+    fig1, ax1 = plt.subplots(figsize=(9, 4)) # (9, 4) for 2x1 layout
 
     # Plot all graphs
     ax1.plot(x, y_fitness, c=c[0], linewidth=2, label="Fitness", marker='x', markersize=12)
@@ -111,7 +111,7 @@ def plot_eval_results(file: str, folder: str, dataset_name: str):
 
     # Limits of the axes:
     ax1.set_xlim(0.05, 1.05)
-    ax1.set_ylim(0.4, 1.1)
+    ax1.set_ylim(0.0, 1.3)
     ax1.set_xticks([0.1, 0.2, 0.5, 0.8, 1.0])
     ax1.tick_params(axis='both', which='major', labelsize=12)
     ax1.yaxis.set_major_formatter(StrMethodFormatter('{x:,.2f}'))
@@ -131,7 +131,7 @@ def plot_eval_results(file: str, folder: str, dataset_name: str):
     """
 
     # Plot the second figure
-    fig2, ax2 = plt.subplots(figsize=(8, 5)) # (9, 4) for 2x1 layout
+    fig2, ax2 = plt.subplots(figsize=(9, 4)) # (9, 4) for 2x1 layout
 
     ax2.plot(x, y_acc, c=c[0], linewidth=2, label="Accuracy", marker='x', markersize=12)
     ax2.plot(x, y_jaccard, c=c[1], linewidth=2, label="Jaccard", marker='.', markersize=12)
@@ -169,14 +169,14 @@ def plot_eval_results(file: str, folder: str, dataset_name: str):
     if dataset_name == 'msnbc':
         # For MSNBC, we scale down the baseline to 11044.0
         baseline = np.full_like(x, 4260.0)
-    elif dataset_name == 'msnbc_mod':
+    elif dataset_name == 'paths_mil':
         # For MSNBC Mod, we scale down the baseline to 11044.0
-        baseline = np.full_like(x, 4258.0)
+        baseline = np.full_like(x, 11002.0)
     else:
         baseline = np.full_like(x, 9190.0)  # 9190 for 10,000 trajectories and 11044 for 1,000,000 trajectories
 
     # Plot the third figure
-    fig3, ax3 = plt.subplots(figsize=(8, 5)) # (9, 4) for 2x1 layout
+    fig3, ax3 = plt.subplots(figsize=(9, 4)) # (9, 4) for 2x1 layout
 
     ax3.plot(x, y_tp, c=c[0], linewidth=2, label="TP", marker='.', markersize=12)
     ax3.plot(x, y_fn, c=c[1], linewidth=2, label="FN", marker='x', markersize=12)
@@ -209,11 +209,11 @@ def plot_error_results(file: str, folder: str, dataset_name: str):
     """
     # Read data
     df = pd.read_csv(file)
-    df_base = pd.read_csv(f'../results/errors_noDP_{dataset_name}.csv')
+    df_base = pd.read_csv('../results/errors_noDP_paths.csv')
     df_msnbc = pd.read_csv('../results/errors_msnbc.csv')
-    df_msnbc_base = pd.read_csv(f'../results/errors_noDP_msnbc.csv')
-    df_msnbc_mod = pd.read_csv('../results/errors_msnbc_mod.csv')
-    df_msnbc_mod_base = pd.read_csv(f'../results/errors_noDP_msnbc_mod.csv')
+    df_msnbc_base = pd.read_csv('../results/errors_noDP_msnbc.csv')
+    df_paths_mil = pd.read_csv('../results/errors_paths_mil.csv')
+    df_paths_mil_base = pd.read_csv('../results/errors_noDP_paths_mil.csv')
     
     # Sort baseline by subset_max_length once
     df_base_sorted = df_base.sort_values('subset_max_length')
@@ -223,12 +223,12 @@ def plot_error_results(file: str, folder: str, dataset_name: str):
     # Sort base msnbc by subset_max_length
     df_msnbc_sorted = df_msnbc_base.sort_values('subset_max_length')
     x_msnbc_base = df_msnbc_sorted['subset_max_length']
-    y_msnbc_base = df_msnbc_sorted['mean_error']/3.0  # Scale down by 3.0
+    y_msnbc_base = df_msnbc_sorted['mean_error']  # Scale down by 3.0
 
-    # Sort base msnbc_mod by subset_max_length
-    # df_msnbc_mod_sorted = df_msnbc_mod_base.sort_values('subset_max_length')
-    # x_msnbc_mod_base = df_msnbc_mod_sorted['subset_max_length']
-    # y_msnbc_mod_base = df_msnbc_mod_sorted['mean_error']/3.0  # Scale down by 3.0
+    # Sort paths_mil by subset_max_length
+    df_paths_mil_sorted = df_paths_mil_base.sort_values('subset_max_length')
+    x_paths_mil_base = df_paths_mil_sorted['subset_max_length']
+    y_paths_mil_base = df_paths_mil_sorted['mean_error']  # Scale down by 3.0
 
     # Get sorted list of eps values
     eps_values = sorted(df['eps'].unique(), key=float)
@@ -237,7 +237,7 @@ def plot_error_results(file: str, folder: str, dataset_name: str):
         # Filter & sort for this epsilon
         df_eps = df[df['eps'] == eps].sort_values('subset_max_length')
         df_eps_msnbc = df_msnbc[df_msnbc['eps'] == eps].sort_values('subset_max_length')
-        df_eps_msnbc_mod = df_msnbc_mod[df_msnbc_mod['eps'] == eps].sort_values('subset_max_length')
+        df_eps_paths_mil = df_paths_mil[df_paths_mil['eps'] == eps].sort_values('subset_max_length')
 
         # Create figure
         fig, ax = plt.subplots(figsize=(8, 5))
@@ -245,22 +245,32 @@ def plot_error_results(file: str, folder: str, dataset_name: str):
         # Plot implementation curve
         x_imp = df_eps['subset_max_length']
         y_imp = df_eps['mean_error']
-        ax.plot(x_imp, y_imp, marker='o', label='Berlin: 10,000')
-        ax.fill_between(x_imp, y_imp - df_eps['std_error'], y_imp + df_eps['std_error'], alpha=0.2)
+        ax.plot(x_imp, y_imp, marker='o', label='Berlin: 10,000', linestyle='-')
+        ax.fill_between(x_imp, y_imp - df_eps['std_error'], y_imp + df_eps['std_error'], alpha=0.2, color='blue')
 
         # Plot the same baseline curve
-        ax.plot(x_bas, y_bas, marker='x', linestyle='--', label='Baseline')
-        ax.fill_between(x_bas, y_bas - df_base_sorted['std_error'], y_bas + df_base_sorted['std_error'], alpha=0.2, color='gray')
+        ax.plot(x_bas, y_bas, marker='D', linestyle='-.', label='Baseline Berlin: 10,000', color='limegreen')
+        ax.fill_between(x_bas, y_bas - df_base_sorted['std_error'], y_bas + df_base_sorted['std_error'], alpha=0.2, color='limegreen')
 
         # Plot msnbc curve
         x_msnbc = df_eps_msnbc['subset_max_length']
-        y_msnbc = df_eps_msnbc['mean_error']/3.0
-        ax.plot(x_msnbc, y_msnbc, marker='s', linestyle=':', label='MSNBC')
-        ax.fill_between(x_msnbc, y_msnbc - df_eps_msnbc['std_error']/3.0, y_msnbc + df_eps_msnbc['std_error']/3.0, alpha=0.2, color='orange')
+        y_msnbc = df_eps_msnbc['mean_error']
+        ax.plot(x_msnbc, y_msnbc, marker='*', linestyle=':', label='MSNBC', color='hotpink')
+        ax.fill_between(x_msnbc, y_msnbc - df_eps_msnbc['std_error'], y_msnbc + df_eps_msnbc['std_error'], alpha=0.2, color='hotpink')
 
         # Plot baseline msnbc curve
-        ax.plot(x_msnbc_base, y_msnbc_base, marker='x', linestyle='--', label='Baseline MSNBC')
-        ax.fill_between(x_msnbc_base, y_msnbc_base - df_msnbc_sorted['std_error']/3.0, y_msnbc_base + df_msnbc_sorted['std_error']/3.0, alpha=0.2, color='orange')
+        ax.plot(x_msnbc_base, y_msnbc_base, marker='x', linestyle='-.', label='Baseline MSNBC', color='blue')
+        ax.fill_between(x_msnbc_base, y_msnbc_base - df_msnbc_sorted['std_error'], y_msnbc_base + df_msnbc_sorted['std_error'], alpha=0.2, color='blue')
+
+        # Plot paths_mil curve
+        x_paths_mil = df_eps_paths_mil['subset_max_length']
+        y_paths_mil = df_eps_paths_mil['mean_error']
+        ax.plot(x_paths_mil, y_paths_mil, marker='+', linestyle='--', label='Berlin: 1,000,000', color='purple')
+        ax.fill_between(x_paths_mil, y_paths_mil - df_eps_paths_mil['std_error'], y_paths_mil + df_eps_paths_mil['std_error'], alpha=0.2, color='purple')
+
+        # Plot baseline paths_mil curve
+        ax.plot(x_paths_mil_base, y_paths_mil_base, marker='x', linestyle='-.', label='Baseline Berlin: 1,000,000', color='red')
+        ax.fill_between(x_paths_mil_base, y_paths_mil_base - df_paths_mil_sorted['std_error'], y_paths_mil_base + df_paths_mil_sorted['std_error'], alpha=0.2, color='red')
 
         # Plot msnbc_mod curve
         # x_msnbc_mod = df_eps_msnbc_mod['subset_max_length']
@@ -280,9 +290,16 @@ def plot_error_results(file: str, folder: str, dataset_name: str):
         plt.xticks([4, 8, 12, 16, 20], fontsize=12)
         ax.set_title(f"Mean Error vs Max Length (ε = {eps})", fontsize=14)
         ax.grid(True)
-        plt.legend(loc='best', ncol=3, fontsize=12, frameon=False, handlelength=1.5, handleheight=0.5, borderpad=0.5, labelspacing=0.5)
-
-        # Save
-        out_path = f"{folder}Results_error_eps{eps}.pdf"
-        fig.savefig(out_path, bbox_inches='tight', pad_inches=0.1)
+        # Save main figure without legend
+        plot_path = f"{folder}Results_error_eps{eps}.pdf"
+        fig.savefig(plot_path, bbox_inches='tight', pad_inches=0.1)
         plt.close(fig)
+        # Extract legend handles and labels
+        handles, labels = ax.get_legend_handles_labels()
+
+        # Save legend separately
+        fig_legend = plt.figure(figsize=(6, 1.5))
+        fig_legend.legend(handles, labels, loc='center', ncol=3, frameon=False)
+        legend_path = f"{folder}legend.pdf"
+        fig_legend.savefig(legend_path, bbox_inches='tight', pad_inches=0.1)
+        plt.close(fig_legend)

@@ -56,10 +56,10 @@ cdef extern from "./cpp_trie/include/main.h":
     ctypedef unordered_map[Triplet, double] TripletMap
 
     TripletMap create_triplet_map(const vector[Trajectory]& trajectories)
-    bool create_trie(TripletMap triplet, double epsilon, const vector[Trajectory]& trajectories)
-    bool create_trie_no_noise(TripletMap triplet, const vector[Trajectory]& trajectories)
-    EvalResult evaluate(TripletMap triplet, double epsilon, const vector[Trajectory]& trajectories, bool ablation)
-    EvalResult evaluate_no_noise(TripletMap triplet, const vector[Trajectory]& trajectories)
+    bool create_trie(TripletMap graph, TripletMap triplet, double epsilon, const vector[Trajectory]& trajectories)
+    bool create_trie_no_noise(TripletMap graph, TripletMap triplet, const vector[Trajectory]& trajectories)
+    EvalResult evaluate(TripletMap graph, TripletMap triplet, double epsilon, const vector[Trajectory]& trajectories, bool ablation)
+    EvalResult evaluate_no_noise(TripletMap graph, TripletMap triplet, const vector[Trajectory]& trajectories)
     vector[double] evalErrors(TripletMap triplet, double epsilon, const vector[Trajectory]& trajectories)
     vector[double] evalErrors_noDP(TripletMap triplet, const vector[Trajectory]& trajectories)
     PrefixMap process_test(const Trajectory trajec, const StartMap start)
@@ -134,7 +134,7 @@ cdef vector[Trajectory] list_to_vector(list py_list):
     return trajectories
 
 # Main function to process prefixes
-def trie(list py_trajectories, str dataname, eps=0.1, do_eval=False, num_evals=100, ablation=False):
+def trie(list py_graph, list py_trajectories, str dataname, eps=0.1, do_eval=False, num_evals=100, ablation=False):
     """
     Process the trajectories and build a trie.
     """
@@ -145,9 +145,12 @@ def trie(list py_trajectories, str dataname, eps=0.1, do_eval=False, num_evals=1
     print("Done converting to C++ Trajectories")
     print(f"Time taken to convert: {end - start} seconds\n")
 
+    cdef vector[Trajectory] graph = list_to_vector(py_graph)
+
     # Generate tripletmap
     start = time.time()
     cdef TripletMap triplet_map = create_triplet_map(trajectories)
+    cdef TripletMap triplet_map_graph = create_triplet_map(graph)
     end = time.time()
 
     print(f"Done creating triplet map in {end - start} seconds\n")
@@ -157,31 +160,33 @@ def trie(list py_trajectories, str dataname, eps=0.1, do_eval=False, num_evals=1
     print("Begin Trie generation...")
 
     # cdef TripletMap triplet_map = process_triplets(trajectories)
-    trie_bool = create_trie(triplet=triplet_map, epsilon=eps, trajectories=trajectories)
+    trie_bool = create_trie(graph=triplet_map_graph, triplet=triplet_map, epsilon=eps, trajectories=trajectories)
 
     # erros = evalErrors(triplet=triplet_map, epsilon=eps, trajectories=trajectories)
     # nonDP_erros = evalErrors_noDP(triplet=triplet_map, trajectories=trajectories)
     # print(erros)
+    # print(nonDP_erros)
 
     end = time.time()
 
     print(f"Done Trie generation in {(end - start) / 60} minutes\n")
 
     if do_eval:
-        evaluate_trie(triplet_map, trajectories, num_evals, dataname, ablation)
+        evaluate_trie(triplet_map_graph, triplet_map, trajectories, num_evals, dataname, ablation)
 
     return trie_bool
 
 """
 Create a without differential privacy
 """
-def no_dp_trie(list py_trajectories, str dataname, do_eval=False, num_evals=100):
+def no_dp_trie(list py_graph, list py_trajectories, str dataname, do_eval=False, num_evals=100):
     """
     Process the trajectories and build a trie.
     """
     print("Processing prefixes...")
     start = time.time()
     cdef vector[Trajectory] trajectories = list_to_vector(py_trajectories)
+    cdef vector[Trajectory] network = list_to_vector(py_graph)
     end = time.time()
     print("Done converting to C++ Trajectories")
     print(f"Time taken to convert: {end - start} seconds\n")
@@ -189,6 +194,7 @@ def no_dp_trie(list py_trajectories, str dataname, do_eval=False, num_evals=100)
     # Generate tripletmap
     start = time.time()
     cdef TripletMap triplet_map = create_triplet_map(trajectories)
+    cdef TripletMap graph = create_triplet_map(network)  # Use the same triplet map for evaluation
     end = time.time()
 
     print(f"Done creating triplet map in {end - start} seconds\n")
@@ -197,7 +203,7 @@ def no_dp_trie(list py_trajectories, str dataname, do_eval=False, num_evals=100)
     start = time.time()
     print("Begin Trie generation...")
 
-    trie_bool = create_trie_no_noise(triplet=triplet_map, trajectories=trajectories)
+    trie_bool = create_trie_no_noise(graph=graph, triplet=triplet_map, trajectories=trajectories)
 
     end = time.time()
 
@@ -207,14 +213,14 @@ def no_dp_trie(list py_trajectories, str dataname, do_eval=False, num_evals=100)
     Evaluate the non DP Trie.
     """
     if do_eval:
-        eval_no_dp(triplet_map, trajectories, num_evals, dataname)
+        eval_no_dp(graph, triplet_map, trajectories, num_evals, dataname)
 
     return trie_bool
 
 """
 Function to evaluate the Rejection Sampling Trie generation
 """
-cdef void evaluate_trie(TripletMap triplet, vector[Trajectory] traject, int num_evals, str dataname, ablation):
+cdef void evaluate_trie(TripletMap graph, TripletMap triplet, vector[Trajectory] traject, int num_evals, str dataname, ablation):
     # Ensure the results directory exists
     os.makedirs("../results", exist_ok=True)
 
@@ -237,6 +243,7 @@ cdef void evaluate_trie(TripletMap triplet, vector[Trajectory] traject, int num_
                 'eps','max_query_length','subset_id',
                 'subset_max_length','mean_error','std_error','num_evals'
             ])
+        pass
     else:
         with open(f'../results/data_{dataname}_ablation.csv', mode='w', newline='', encoding='utf-8') as df:
             writer = csv.writer(df)
@@ -269,7 +276,7 @@ cdef void evaluate_trie(TripletMap triplet, vector[Trajectory] traject, int num_
         fnr = []
         # Evaluate the triplet map
         for i in range(num_evals):
-            result = evaluate(triplet=triplet, epsilon=eps, trajectories=traject, ablation=ablation)
+            result = evaluate(graph=graph, triplet=triplet, epsilon=eps, trajectories=traject, ablation=ablation)
             fit.append(result.fit)
             f1.append(result.f1)
             precision.append(result.precision)
@@ -399,7 +406,7 @@ cdef void evaluate_trie(TripletMap triplet, vector[Trajectory] traject, int num_
 
     return
 
-cdef void eval_no_dp(TripletMap triplet, vector[Trajectory] traject, int num_evals, str dataname):
+cdef void eval_no_dp(TripletMap graph, TripletMap triplet, vector[Trajectory] traject, int num_evals, str dataname):
     
     # Ensure the results directory exists
     os.makedirs("../results", exist_ok=True)
@@ -439,7 +446,7 @@ cdef void eval_no_dp(TripletMap triplet, vector[Trajectory] traject, int num_eva
 
     # Evaluate the triplet map
     for i in range(num_evals):
-        result = evaluate_no_noise(triplet=triplet, trajectories=traject)
+        result = evaluate_no_noise(graph=graph, triplet=triplet, trajectories=traject)
         fit.append(result.fit)
         f1.append(result.f1)
         precision.append(result.precision)

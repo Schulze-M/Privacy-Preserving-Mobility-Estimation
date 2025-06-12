@@ -15,6 +15,76 @@
 #include <cmath>
 #include "main.h"  // Assumes Station and Triplet definitions are declared here
 
+class Bitset {
+public:
+    Bitset() : bits_(), size_(0) {}
+    Bitset(size_t n) : size_(n) {
+        bits_.assign((n + 63) >> 6, 0ULL);
+    }
+    void resize(size_t n) {
+        size_ = n;
+        bits_.assign((n + 63) >> 6, 0ULL);
+    }
+    void set(size_t pos) {
+        bits_[pos >> 6] |= (1ULL << (pos & 63));
+    }
+    bool none() const {
+        for (auto w : bits_) if (w) return false;
+        return true;
+    }
+    size_t count() const {
+        size_t c = 0;
+        for (auto w : bits_) c += __builtin_popcountll(w);
+        return c;
+    }
+    Bitset& operator&=(const Bitset& other) {
+        size_t n = bits_.size();
+        for (size_t i = 0; i < n; ++i)
+            bits_[i] &= other.bits_[i];
+        return *this;
+    }
+private:
+    std::vector<uint64_t> bits_;
+    size_t size_;
+};
+
+class TrueCountIndex {
+public:
+    TrueCountIndex(const std::vector<std::vector<Station>>& data) {
+        size_t N = data.size();
+        // Build posting bitsets
+        for (size_t rec = 0; rec < N; ++rec) {
+            for (auto const& s : data[rec]) {
+                auto& bs = index_[s];
+                if (bs.none() && bs.count() == 0 && current_size_ < N) {
+                    // first time, resize
+                    bs.resize(N);
+                }
+                bs.set(rec);
+            }
+        }
+    }
+
+    // Returns how many trajectories contain the full prefix anywhere
+    size_t trueCount(const std::vector<Station>& prefix) const {
+        if (prefix.empty()) return 0;
+        auto it = index_.find(prefix[0]);
+        if (it == index_.end()) return 0;
+        Bitset mask = it->second;
+        for (size_t i = 1; i < prefix.size(); ++i) {
+            auto jt = index_.find(prefix[i]);
+            if (jt == index_.end()) return 0;
+            mask &= jt->second;
+            if (mask.none()) return 0;
+        }
+        return mask.count();
+    }
+
+private:
+    std::unordered_map<Station, Bitset, StationHash, StationEqual> index_;
+    size_t current_size_ = 0;
+};
+
 // A node in the trie.
 class TrieNode {
 public:
@@ -200,7 +270,7 @@ public:
     }
 
     // returns { TP, FP, FN, TN }
-    std::array<double,4> calculateConfusionMatrix(const std::vector<std::vector<Station>>& trajectories) const {
+    std::array<double,4> calculateConfusionMatrix(const std::vector<std::vector<Station>>& trajectories, TripletMap graph) const {
         using TripletSet = std::unordered_set<Triplet, TripletHash, TripletEqual>;
 
         // 1) Build trueSet from the trajectories
@@ -212,7 +282,12 @@ public:
             }
         }
 
-         // 2) Build predictedSet from the trie (depth exactly 3, count > 0)
+        // use graph to create a trueSet with counts
+        // for (const auto& [triplet, count] : graph) {
+        //     trueSet.insert(triplet);
+        // }
+
+        // 2) Build predictedSet from the trie (depth exactly 3, count > 0)
         TripletSet predictedSet;
         for (auto const& [s1, n1] : root->children) {
             for (auto const& [s2, n2] : n1->children) {
@@ -224,12 +299,15 @@ public:
         }
 
         // 3) Universe = union of true and predicted
-        TripletSet allSet = trueSet;
-        allSet.insert(predictedSet.begin(), predictedSet.end());
+        // 3) Determine the universe: all keys in graph
+        TripletSet universe;
+        for (const auto& [triplet, _] : graph) {
+            universe.insert(triplet);
+        }
 
         // 4) Compute confusion‐matrix counts
         double TP = 0.0, FP = 0.0, FN = 0.0, TN = 0.0;
-        for (auto const& t : allSet) {
+        for (auto const& t : universe) {
             bool isTrue = !!trueSet.count(t);
             bool isPred = !!predictedSet.count(t);
             if      (isPred && isTrue)  ++TP;
@@ -292,7 +370,7 @@ public:
         TrieNode* node = root;
         for (auto const& s: prefix) {
             auto it = node->children.find(s);
-            if (it==node->children.end()) return 0.0;
+            if (it == node->children.end()) return 0.0;
             node = it->second;
         }
         return node->count;
@@ -329,41 +407,51 @@ public:
     }
 
     // Evaluate average relative errors for random count queries
-    // Splits into 4 subsets by query length up to maxQL
+    // Splits into k subsets by query length up to maxQL
     std::vector<double> evaluateCountQueries(
         const std::vector<std::vector<Station>>& data,
         size_t numQueries = 10000,
-        int maxQL = 20
-    ) const {
+        int maxQL = 20,
+        int k = 5
+    ) {
+        TrueCountIndex idx(data);
         static thread_local std::mt19937_64 rng(std::random_device{}());
-        // Build universe
+
+        // collect unique stations
         std::unordered_set<Station, StationHash, StationEqual> us;
-        for(auto const& t: data) for(auto const& s: t) us.insert(s);
+        for (auto const& t: data) for (auto const& s: t) us.insert(s);
         std::vector<Station> uni(us.begin(), us.end());
-        size_t N=data.size(); 
-        double s_bd=0.01*N;
-        
+
+        size_t N = data.size();
+        double s_bd = 0.01 * N;
         std::uniform_int_distribution<size_t> uid(0, uni.size()-1);
-        const int k=5;
-        std::vector<double> sumE(k,0);
-        std::vector<size_t> cntQ(k,0);
-        for(size_t qi=0;qi<numQueries;++qi) {
-            int idx = qi*k/numQueries;
-            int mlen = std::max(1,(idx+1)*maxQL/k);
-            std::uniform_int_distribution<int> ld(1,mlen);
-            int ql=ld(rng);
-            std::vector<Station> q; q.reserve(ql);
-            for(int i=0;i<ql;++i) q.push_back(uni[uid(rng)]);
-            double tC=trueCount(data,q);
-            double eC=estimatedCount(q);
-            double denom = std::max(tC, s_bd);
-            sumE[idx] += std::abs(eC-tC)/denom;
-            cntQ[idx]++;
+
+        std::vector<double> sumE(k, 0.0);
+        std::vector<size_t> cntQ(k, 0);
+
+        for (size_t qi = 0; qi < numQueries; ++qi) {
+            int idxGroup = qi * k / numQueries;
+            int mlen = std::max(1, (idxGroup+1) * maxQL / k);
+            std::uniform_int_distribution<int> ld(1, mlen);
+            int ql = ld(rng);
+
+            std::vector<Station> q;
+            q.reserve(ql);
+            for (int i = 0; i < ql; ++i) q.push_back(uni[uid(rng)]);
+
+            // fast true count
+            size_t tC = idx.trueCount(q);
+            double eC   = estimatedCount(q);
+            double denom = std::max(static_cast<double>(tC), s_bd);
+            sumE[idxGroup] += std::abs(eC - tC) / denom;
+            cntQ[idxGroup]++;
         }
+
         std::vector<double> avg(k);
-        for(int i=0;i<k;++i) avg[i]=sumE[i]/cntQ[i];
+        for (int i = 0; i < k; ++i) avg[i] = sumE[i] / cntQ[i];
         return avg;
     }
+
 
 };
 

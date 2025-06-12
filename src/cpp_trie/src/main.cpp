@@ -121,10 +121,10 @@ TripletMap create_triplet_map(const std::vector<Trajectory>& trajectories) {
 }
 
 // Function to generate a trie from the triplet map and trajectories
-bool create_trie(TripletMap triplet, double epsilon, const std::vector<Trajectory>& trajectories) {
+bool create_trie(TripletMap graph, TripletMap triplet, double epsilon, const std::vector<Trajectory>& trajectories) {
 
     // double epsilon = 0.1;       // Adjust epsilon as needed.
-    double sensitivity = 20.0;   // Typically 1 for count queries.
+    double sensitivity = 40.0;   // Typically 1 for count queries.
     double gamma = 0.01;
     double e_0 = 0.01;
     
@@ -135,6 +135,19 @@ bool create_trie(TripletMap triplet, double epsilon, const std::vector<Trajector
     double e_fnr = epsilon * 0.05;
 
     int T = static_cast<int>(std::max((1.0 / gamma) * std::log(2.0 / e_0), 1.0 / (std::exp(1.0) * gamma)));
+
+    // all counts of graph must be set to 1.0, since we want to use the graph as a base for the triplet counts
+    for (auto& [triplet, count] : graph) {
+        count = 1.0; // Set all counts to 1.0
+    }
+
+    // Union of graph and triplet
+    for (const auto& [triplet, count] : triplet) {
+        graph[triplet] += count; // Add triplet counts to the graph
+    }
+
+    std::cout << "Number of triplets in graph: " << graph.size() << std::endl;
+    std::cout << "Number of triplets in triplet: " << triplet.size() << std::endl;
 
     double goal_f1 = 0.3;
     TripletMap original_triplet = triplet; // keep original clean
@@ -167,7 +180,7 @@ bool create_trie(TripletMap triplet, double epsilon, const std::vector<Trajector
         }
 
         // Evaluate the trie using the trajectories -> calculate confusion matrix
-        std::array<double, 4> values = trie.calculateConfusionMatrix(trajectories); // Get tp, fp, fn, tn
+        std::array<double, 4> values = trie.calculateConfusionMatrix(trajectories, graph); // Get tp, fp, fn, tn
 
         // noise the values using Laplace noise
         for (size_t i = 0; i < values.size(); ++i) {
@@ -225,11 +238,16 @@ bool create_trie(TripletMap triplet, double epsilon, const std::vector<Trajector
 }
 
 // Function to create a trie without any noise -> base case
-bool create_trie_no_noise(TripletMap triplet, const std::vector<Trajectory>& trajectories) {
+bool create_trie_no_noise(TripletMap graph, TripletMap triplet, const std::vector<Trajectory>& trajectories) {
     
+    // Union of graph and triplet
+    for (const auto& [triplet, count] : triplet) {
+        graph[triplet] += count; // Add triplet counts to the graph
+    }
+
     // Create a trie from the triplet map and trajectories
     Trie trie;
-    for (const auto& entry : triplet) {
+    for (const auto& entry : graph) {
         trie.insert(entry.first, entry.second);
     }
     
@@ -247,10 +265,10 @@ bool create_trie_no_noise(TripletMap triplet, const std::vector<Trajectory>& tra
 }
 
 // Function to process triplets
-EvalResult evaluate(TripletMap triplet, double epsilon, const std::vector<Trajectory>& trajectories, bool ablation) {
+EvalResult evaluate(TripletMap graph, TripletMap triplet, double epsilon, const std::vector<Trajectory>& trajectories, bool ablation) {
 
     // double epsilon = 0.1;       // Adjust epsilon as needed.
-    double sensitivity = 20.0;   // Typically 1 for count queries.
+    double sensitivity = 40.0;
     double gamma = 0.01;
     double e_0 = 0.01;
     
@@ -264,7 +282,18 @@ EvalResult evaluate(TripletMap triplet, double epsilon, const std::vector<Trajec
     int T = static_cast<int>(std::max((1.0 / gamma) * std::log(2.0 / e_0), 1.0 / (std::exp(1.0) * gamma)));
 
     double goal_f1 = 0.65;
-    TripletMap original_triplet = triplet; // keep original clean
+
+    // all counts of graph must be set to 1.0, since we want to use the graph as a base for the triplet counts
+    for (auto& [triplet, count] : graph) {
+        count = 1.0; // Set all counts to 1.0
+    }
+
+    // Union of graph and triplet
+    for (const auto& [triplet, count] : triplet) {
+        graph[triplet] += count; // Add triplet counts to the graph
+    }
+
+    TripletMap original_triplet = graph; // keep original clean
     TripletMap k_selected;
 
     // Initialize the random number generator
@@ -297,7 +326,7 @@ EvalResult evaluate(TripletMap triplet, double epsilon, const std::vector<Trajec
             trie.insert(entry.first, entry.second);
         }
         
-        std::array<double, 4> values = trie.calculateConfusionMatrix(trajectories); // Get tp, fp, fn, tn
+        std::array<double, 4> values = trie.calculateConfusionMatrix(trajectories, graph); // Get tp, fp, fn, tn
         std::array<double, 4> values_orig = values;
 
         // noise the values using Laplace noise
@@ -336,7 +365,7 @@ EvalResult evaluate(TripletMap triplet, double epsilon, const std::vector<Trajec
                 .fp = values_orig[1],
                 .fn = values_orig[2],
                 .tn = values_orig[3],
-                .errors = errors,
+                .errors = errors, // Placeholder for errors
                 .accuracy = accuracy,
                 .jaccard = jaccard,
                 .fnr = fnr,
@@ -352,15 +381,20 @@ EvalResult evaluate(TripletMap triplet, double epsilon, const std::vector<Trajec
 }
 
 // Function to eval base case without noise
-EvalResult evaluate_no_noise(TripletMap triplet, const std::vector<Trajectory>& trajectories) {
+EvalResult evaluate_no_noise(TripletMap graph, TripletMap triplet, const std::vector<Trajectory>& trajectories) {
     
+    // Union of graph and triplet
+    for (const auto& [triplet, count] : triplet) {
+        graph[triplet] += count; // Add triplet counts to the graph
+    }
+
     // Create a trie from the triplet map and trajectories
     Trie trie;
-    for (const auto& entry : triplet) {
+    for (const auto& entry : graph) {
         trie.insert(entry.first, entry.second);
     }
 
-    std::array<double, 4> values = trie.calculateConfusionMatrix(trajectories);
+    std::array<double, 4> values = trie.calculateConfusionMatrix(trajectories, graph);
     double recall = values[0] / (values[0] + values[2]); // Sensitivity
     double precision = values[0] / (values[0] + values[1]);
     double f1 = (precision + recall > 0.0)
@@ -436,7 +470,7 @@ std::vector<double> evalErrors(TripletMap triplet, double epsilon, const std::ve
             trie.insert(entry.first, entry.second);
         }
         
-        std::array<double, 4> values = trie.calculateConfusionMatrix(trajectories); // Get tp, fp, fn, tn
+        std::array<double, 4> values = trie.calculateConfusionMatrix(trajectories, triplet); // Get tp, fp, fn, tn
 
         // noise the values using Laplace noise
         for (size_t i = 0; i < values.size(); ++i) {
@@ -529,9 +563,10 @@ TripletMap select_significant_triplets(
     // random double between 1 and std::sqrt(2.0) / epsilon
     std::random_device rd;
     std::mt19937 gen(rd());
-    std::uniform_real_distribution<> dis(0.0, std::sqrt(2.0) / epsilon);
+    std::uniform_real_distribution<> dis(0.0, (20*std::sqrt(2.0)) / epsilon);
     // Generate a random value
     const double threshold = dis(gen);
+    // const double threshold = (20*std::sqrt(2.0)) / epsilon; // 20 is a constant factor to ensure we have a significant threshold
 
     // double delta = 0.5 * std::exp(-epsilon * random_value);
 
@@ -545,6 +580,21 @@ TripletMap select_significant_triplets(
             result[triplet] = count;
         }
     }
+
+    // Select random triplets between 1 and len(TripletMap). TODO: ablation study
+    // 1) Random engine
+    // std::uniform_int_distribution<std::size_t> distCount(1, triplet_counts.size());
+    // std::size_t N = distCount(gen);
+    
+    // std::vector<std::pair<Triplet, double>> triplet_vector(result.begin(), result.end());
+    // std::shuffle(triplet_vector.begin(), triplet_vector.end(), gen);
+    // if (triplet_vector.size() > N) {
+    //     triplet_vector.resize(N); // Limit to N triplets
+    // }
+    // result.clear();
+    // for (const auto& [triplet, count] : triplet_vector) {
+    //     result[triplet] = count; // Reinsert the selected triplets into the result
+    // }
 
     return result;
 }

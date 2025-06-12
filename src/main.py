@@ -2,6 +2,7 @@ import argparse
 import os
 import pickle
 from pprint import pprint
+import numpy as np
 
 import ppme
 
@@ -59,15 +60,24 @@ def load_data() -> trie:
     with open(trajs_path, 'rb') as file:
         trajs = pickle.load(file)
 
+    # Load graph
+    if args.trajectory_file == 'msnbc.pkl':
+        with open(os.path.join(DATA_FOLDER, DATA_CITY_NAME, 'msnbc_network.pkl'), 'rb') as file:
+            graph = pickle.load(file)
+    else:
+        with open(os.path.join(DATA_FOLDER, DATA_CITY_NAME, 'network.pkl'), 'rb') as file:
+            graph = pickle.load(file)
+
     # create the trie
     print(len(trajs))
+    print(len(graph))
 
     # Create Trie with rejection sampling
-    trie = ppme.trie(trajs, args.trajectory_file.replace('.pkl', ''), args.epsilon, args.evaluate, args.number, args.ablation)
+    trie = ppme.trie(graph, trajs, args.trajectory_file.replace('.pkl', ''), args.epsilon, args.evaluate, args.number, args.ablation)
 
     # Create trie without DP
     if args.noDP:
-        ppme.no_dp_trie(trajs, args.trajectory_file.replace('.pkl', ''), args.evaluate, args.number)
+        ppme.no_dp_trie(graph, trajs, args.trajectory_file.replace('.pkl', ''), args.evaluate, args.number)
 
     pprint(trie)
 
@@ -76,6 +86,8 @@ def load_data() -> trie:
     if args.plot:
         plot_eval_results(f'../results/data_{dataset_name}.csv', '../results/', dataset_name)
         # plot_error_results(f'../results/errors_{dataset_name}.csv', '../results/', dataset_name)
+
+    exit(1)
 
 if __name__ == '__main__':
     load_data()

@@ -108,16 +108,16 @@ using StartMap = std::unordered_map<Station, double>;
 TripletMap create_triplet_map(const std::vector<Trajectory>& trajectories);
 
 // Generate a trie
-bool create_trie(TripletMap triplet, double epsilon, const std::vector<Trajectory>& trajectories);
+bool create_trie(TripletMap graph, TripletMap triplet, double epsilon, const std::vector<Trajectory>& trajectories);
 
 // Function to create a trie without any noise
-bool create_trie_no_noise(TripletMap triplet, const std::vector<Trajectory>& trajectories);
+bool create_trie_no_noise(TripletMap graph, TripletMap triplet, const std::vector<Trajectory>& trajectories);
 
 // Function to evaluate the trie
-EvalResult evaluate(TripletMap triplet, double epsilon, const std::vector<Trajectory>& trajectories, bool ablation);
+EvalResult evaluate(TripletMap graph, TripletMap triplet, double epsilon, const std::vector<Trajectory>& trajectories, bool ablation);
 
 // Function to evaluate the trie without any noise
-EvalResult evaluate_no_noise(TripletMap triplet, const std::vector<Trajectory>& trajectories);
+EvalResult evaluate_no_noise(TripletMap graph, TripletMap triplet, const std::vector<Trajectory>& trajectories);
 
 // Function to evaluate errors in the trie
 std::vector<double> evalErrors(TripletMap triplet, double epsilon, const std::vector<Trajectory>& trajectories);
